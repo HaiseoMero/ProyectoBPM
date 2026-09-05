@@ -67,7 +67,12 @@
       <section class="test-header-zone">
         <div class="test-title-container">
           <h1 class="test-title">Inventario Big Five (BFI-44)</h1>
-          <p class="test-sub">Por favor, responde qué tan de acuerdo estás con cada afirmación sobre tu persona.</p>
+          <div class="test-instructions-box">
+            <span class="instructions-icon">✨</span>
+            <p>
+              Vas a responder 44 afirmaciones sobre cómo eres normalmente. No hay respuestas correctas o incorrectas. Responde con tu primera impresión — no lo pienses demasiado, ni te compares con lo que crees que "deberías" ser. <strong>Solo podrás realizar este test una vez</strong>, así que tómate un momento para estar tranquilo/a antes de comenzar.
+            </p>
+          </div>
         </div>
         
         <div class="progress-stats-box">
@@ -341,8 +346,23 @@ async function nextPage() {
   margin-bottom: 24px;
   gap: 24px;
 }
-.test-title { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.8rem; margin-bottom: 4px; text-align: left;}
-.test-sub { font-size: 0.9rem; color: var(--c-muted); text-align: left;}
+.test-title { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.8rem; margin-bottom: 12px; text-align: left;}
+.test-instructions-box {
+  display: flex;
+  gap: 16px;
+  background: #EEF2FF;
+  border-left: 4px solid var(--c-primary);
+  padding: 16px 20px;
+  border-radius: 0 12px 12px 0;
+  font-size: 0.92rem;
+  color: var(--c-text);
+  line-height: 1.6;
+  max-width: 600px;
+  text-align: left;
+}
+.test-instructions-box p { margin: 0; }
+.test-instructions-box strong { color: var(--c-primary); }
+.instructions-icon { font-size: 1.4rem; }
 
 .progress-stats-box {
   background: var(--c-surface);

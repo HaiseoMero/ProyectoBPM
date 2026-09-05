@@ -1,0 +1,133 @@
+# Docker Compose infrastructure for ProyectoBPM Vócalis
+# Includes MySQL, Elasticsearch, Camunda 8 (Zeebe, Operate, Tasklist), and FastAPI backend
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: vocalis-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: vocalis_root
+      MYSQL_DATABASE: vocalis_db
+      MYSQL_USER: vocalis
+      MYSQL_PASSWORD: vocalis_pass
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: vocalis-elasticsearch
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      cluster.name: elasticsearch
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  zeebe:
+    image: camunda/zeebe:8.6.7
+    container_name: vocalis-zeebe
+    ports:
+      - "26500:26500"
+      - "9600:9600"
+      - "8088:8080"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_CLASSNAME: io.camunda.zeebe.exporter.ElasticsearchExporter
+      ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_URL: http://elasticsearch:9200
+      ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_BULK_SIZE: 1
+      ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK: 0.998
+      ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK: 0.999
+      JAVA_TOOL_OPTIONS: "-Xms512m -Xmx512m"
+    volumes:
+      - zeebe_data:/usr/local/zeebe/data
+    restart: unless-stopped
+
+  operate:
+    image: camunda/operate:8.6.7
+    container_name: vocalis-operate
+    ports:
+      - "8081:8080"
+    depends_on:
+      zeebe:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      CAMUNDA_OPERATE_ZEEBE_GATEWAYADDRESS: zeebe:26500
+      CAMUNDA_OPERATE_ELASTICSEARCH_URL: http://elasticsearch:9200
+      CAMUNDA_OPERATE_ZEEBEELASTICSEARCH_URL: http://elasticsearch:9200
+      CAMUNDA_OPERATE_CSRFPREVENTIONENABLED: "false"
+      management.endpoints.web.exposure.include: health
+      management.endpoint.health.probes.enabled: "true"
+    restart: unless-stopped
+
+  tasklist:
+    image: camunda/tasklist:8.6.7
+    container_name: vocalis-tasklist
+    ports:
+      - "8082:8080"
+    depends_on:
+      zeebe:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      CAMUNDA_TASKLIST_ZEEBE_GATEWAYADDRESS: zeebe:26500
+      CAMUNDA_TASKLIST_ELASTICSEARCH_URL: http://elasticsearch:9200
+      CAMUNDA_TASKLIST_ZEEBEELASTICSEARCH_URL: http://elasticsearch:9200
+      CAMUNDA_TASKLIST_CSRFPREVENTIONENABLED: "false"
+      management.endpoints.web.exposure.include: health
+      management.endpoint.health.probes.enabled: "true"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: vocalis-backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      zeebe:
+        condition: service_started
+    environment:
+      DATABASE_URL: mysql+aiomysql://vocalis:vocalis_pass@mysql:3306/vocalis_db
+      ZEEBE_GATEWAY: zeebe:26500
+      JWT_SECRET: dev-secret-change-in-production
+      JWT_EXPIRATION_HOURS: 24
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  elastic_data:
+  zeebe_data:
+
+networks:
+  default:
+    driver: bridge

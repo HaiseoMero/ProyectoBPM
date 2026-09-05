@@ -1,0 +1,44 @@
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.models import Usuario, Estudiante, Orientador
+from app.utils.security import hash_password, verify_password
+
+async def create_user(
+    db: AsyncSession, email: str, password: str, role: str, nombre: str,
+    edad: int | None = None, curso_id: int | None = None, departamento: str | None = None
+) -> Usuario:
+    hashed_pwd = hash_password(password)
+    user = Usuario(email=email, password=hashed_pwd, role=role)
+    db.add(user)
+    await db.flush()
+    
+    if role == "estudiante":
+        estudiante = Estudiante(usuario_id=user.id, nombre=nombre, edad=edad, curso_id=curso_id)
+        db.add(estudiante)
+    elif role == "orientador":
+        orientador = Orientador(usuario_id=user.id, nombre=nombre, departamento=departamento)
+        db.add(orientador)
+        
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+async def authenticate_user(db: AsyncSession, email: str, password: str) -> Usuario | None:
+    result = await db.execute(select(Usuario).where(Usuario.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        return None
+    if not verify_password(password, user.password):
+        return None
+    return user
+
+async def get_user_name(user: Usuario, db: AsyncSession) -> str:
+    if user.role == "estudiante":
+        result = await db.execute(select(Estudiante).where(Estudiante.usuario_id == user.id))
+        est = result.scalar_one_or_none()
+        return est.nombre if est else "Estudiante"
+    elif user.role == "orientador":
+        result = await db.execute(select(Orientador).where(Orientador.usuario_id == user.id))
+        ori = result.scalar_one_or_none()
+        return ori.nombre if ori else "Orientador"
+    return "Usuario"

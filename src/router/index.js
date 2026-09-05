@@ -28,24 +28,69 @@ const router = createRouter({
     {
       path: '/estudiante/dashboard',
       name: 'estudiante-dashboard',
-      component: StudentDashboardView
+      component: StudentDashboardView,
+      meta: { requiresAuth: true, role: 'estudiante' }
     },
     {
       path: '/estudiante/evaluacion',
       name: 'estudiante-evaluacion',
-      component: EvaluacionView
+      component: EvaluacionView,
+      meta: { requiresAuth: true, role: 'estudiante' }
     },
     {
       path: '/estudiante/reporte',
       name: 'estudiante-reporte',
-      component: ReporteView
+      component: ReporteView,
+      meta: { requiresAuth: true, role: 'estudiante' }
     },
     {
       path: '/orientador/dashboard',
       name: 'orientador-dashboard',
-      component: OrientadorDashboardView // Ruta enlazada al Mockup 5
+      component: OrientadorDashboardView,
+      meta: { requiresAuth: true, role: 'orientador' }
     }
   ]
+})
+
+// Navigation Guards
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('vocalis_token')
+  let userRole = null
+
+  if (token) {
+    try {
+      const payloadBase64 = token.split('.')[1]
+      const decodedJson = atob(payloadBase64)
+      const payload = JSON.parse(decodedJson)
+      userRole = payload.role
+      
+      // Check if token expired
+      if (payload.exp * 1000 < Date.now()) {
+        localStorage.removeItem('vocalis_token')
+        userRole = null
+      }
+    } catch (e) {
+      localStorage.removeItem('vocalis_token')
+    }
+  }
+
+  // Si trata de ir a /auth y ya está logueado, redirigir a su dashboard
+  if (to.path === '/auth' && userRole) {
+    if (userRole === 'orientador') return next('/orientador/dashboard')
+    else return next('/estudiante/dashboard')
+  }
+
+  // Proteger rutas
+  if (to.meta.requiresAuth) {
+    if (!userRole) {
+      return next('/auth')
+    }
+    if (to.meta.role && to.meta.role !== userRole) {
+      return next('/') // Unauthorized para ese rol
+    }
+  }
+
+  next()
 })
 
 export default router
