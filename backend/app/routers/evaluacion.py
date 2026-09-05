@@ -82,11 +82,8 @@ async def submit_evaluation(request: SubmitEvaluationRequest, estudiante: Estudi
     evaluacion.estado = "completada"
     
     # Update BPM Process
-    from app.models.proceso_bpm import ProcesoBPM
-    proc_result = await db.execute(select(ProcesoBPM).where(ProcesoBPM.evaluacion_id == evaluacion.id))
-    proceso = proc_result.scalar_one_or_none()
-    if proceso:
-        await advance_to(db, proceso, "reporte_listo")
+    from app.services.bpm_service import finish_cuestionario
+    await finish_cuestionario(db, evaluacion.id)
         
     await db.commit()
     await db.refresh(reporte)

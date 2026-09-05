@@ -9,11 +9,15 @@ from app.routers.evaluacion import router as evaluacion_router
 from app.routers.reporte import router as reporte_router
 from app.routers.orientador import router as orientador_router
 
+import asyncio
+from app.worker import start_worker
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    worker_task = asyncio.create_task(start_worker())
     yield
-    # Cleanup if needed
+    worker_task.cancel()
 
 app = FastAPI(
     title="Vócalis API",
