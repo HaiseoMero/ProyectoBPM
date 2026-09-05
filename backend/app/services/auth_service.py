@@ -8,15 +8,15 @@ async def create_user(
     edad: int | None = None, curso_id: int | None = None, departamento: str | None = None
 ) -> Usuario:
     hashed_pwd = hash_password(password)
-    user = Usuario(email=email, password=hashed_pwd, role=role)
+    user = Usuario(email=email, hashed_password=hashed_pwd, rol=role)
     db.add(user)
     await db.flush()
     
     if role == "estudiante":
-        estudiante = Estudiante(usuario_id=user.id, nombre=nombre, edad=edad, curso_id=curso_id)
+        estudiante = Estudiante(usuario_id=user.id, nombre_completo=nombre, edad=edad, curso_id=curso_id)
         db.add(estudiante)
     elif role == "orientador":
-        orientador = Orientador(usuario_id=user.id, nombre=nombre, departamento=departamento)
+        orientador = Orientador(usuario_id=user.id, nombre_completo=nombre, departamento=departamento)
         db.add(orientador)
         
     await db.commit()
@@ -28,17 +28,17 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> Usua
     user = result.scalar_one_or_none()
     if not user:
         return None
-    if not verify_password(password, user.password):
+    if not verify_password(password, user.hashed_password):
         return None
     return user
 
 async def get_user_name(user: Usuario, db: AsyncSession) -> str:
-    if user.role == "estudiante":
+    if user.rol.value == "estudiante":
         result = await db.execute(select(Estudiante).where(Estudiante.usuario_id == user.id))
         est = result.scalar_one_or_none()
-        return est.nombre if est else "Estudiante"
-    elif user.role == "orientador":
+        return est.nombre_completo if est else "Estudiante"
+    elif user.rol.value == "orientador":
         result = await db.execute(select(Orientador).where(Orientador.usuario_id == user.id))
         ori = result.scalar_one_or_none()
-        return ori.nombre if ori else "Orientador"
+        return ori.nombre_completo if ori else "Orientador"
     return "Usuario"

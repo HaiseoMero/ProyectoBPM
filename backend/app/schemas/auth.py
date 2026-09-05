@@ -6,7 +6,7 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=6)
 
 class LoginResponse(BaseModel):
-    token: str
+    access_token: str
     role: Literal["estudiante", "orientador"]
     name: str
 

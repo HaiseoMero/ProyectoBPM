@@ -41,7 +41,7 @@ async def get_estudiantes(orientador: Orientador = Depends(require_orientador), 
         evaluacion = est.evaluaciones[-1] if est.evaluaciones else None
         
         bpm_status_raw = evaluacion.proceso_bpm.estado_actual if (evaluacion and evaluacion.proceso_bpm) else "registro"
-        dt = evaluacion.fecha_inicio if evaluacion else None
+        dt = evaluacion.created_at if evaluacion else None
         
         status_map = {
             'reporte_listo': 'success',
@@ -59,7 +59,7 @@ async def get_estudiantes(orientador: Orientador = Depends(require_orientador), 
         
         items.append(EstudianteListItem(
             id=est.id,
-            name=est.nombre,
+            name=est.nombre_completo,
             email=est.usuario.email if est.usuario else "Sin email",
             course=est.curso.nombre if est.curso else "Sin curso",
             lastUpdate=format_date_spanish(dt),

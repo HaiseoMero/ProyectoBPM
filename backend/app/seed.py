@@ -62,11 +62,11 @@ async def seed_data():
             db.add(Pregunta(orden=orden, texto=texto, dimension=dim, es_invertida=inv))
             
         # Orientador
-        user_ori = Usuario(email='orientador@vocalis.cl', password=hash_password('vocalis123'), role='orientador')
+        user_ori = Usuario(email='orientador@vocalis.cl', hashed_password=hash_password('vocalis123'), rol='orientador')
         db.add(user_ori)
         await db.flush()
         
-        orientador = Orientador(usuario_id=user_ori.id, nombre='Prof. María González', departamento='Orientación')
+        orientador = Orientador(usuario_id=user_ori.id, nombre_completo='Prof. María González', departamento='Orientación')
         db.add(orientador)
         await db.flush()
         
@@ -78,11 +78,11 @@ async def seed_data():
         await db.flush()
         
         # Estudiante
-        user_est = Usuario(email='estudiante@vocalis.cl', password=hash_password('vocalis123'), role='estudiante')
+        user_est = Usuario(email='estudiante@vocalis.cl', hashed_password=hash_password('vocalis123'), rol='estudiante')
         db.add(user_est)
         await db.flush()
         
-        estudiante = Estudiante(usuario_id=user_est.id, nombre='José Miguel Piña', edad=17, curso_id=curso_a.id)
+        estudiante = Estudiante(usuario_id=user_est.id, nombre_completo='José Miguel Piña', edad=17, curso_id=curso_a.id)
         db.add(estudiante)
         
         await db.commit()

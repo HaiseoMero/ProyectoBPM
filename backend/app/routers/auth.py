@@ -19,10 +19,10 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Credenciales incorrectas"
         )
     
-    token = create_access_token({"sub": user.email, "role": user.role})
+    token = create_access_token({"sub": user.email, "role": user.rol.value})
     name = await get_user_name(user, db)
     
-    return LoginResponse(token=token, role=user.role, name=name)
+    return LoginResponse(access_token=token, role=user.rol.value, name=name)
 
 @router.post("/register", response_model=RegisterResponse)
 async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)):
@@ -58,6 +58,6 @@ async def get_me(current_user: Usuario = Depends(get_current_user), db: AsyncSes
     return UserProfile(
         id=current_user.id,
         email=current_user.email,
-        role=current_user.role,
+        role=current_user.rol.value,
         name=name
     )
