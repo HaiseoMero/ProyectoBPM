@@ -1,11 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models import Usuario, Estudiante, Orientador
+from app.models import Usuario, Estudiante, Orientador, Curso
 from app.utils.security import hash_password, verify_password
 
 async def create_user(
     db: AsyncSession, email: str, password: str, role: str, nombre: str,
-    edad: int | None = None, curso_id: int | None = None, departamento: str | None = None
+    nivel: str | None = None, letra: str | None = None, departamento: str | None = None
 ) -> Usuario:
     hashed_pwd = hash_password(password)
     user = Usuario(email=email, hashed_password=hashed_pwd, rol=role)
@@ -13,7 +13,16 @@ async def create_user(
     await db.flush()
     
     if role == "estudiante":
-        estudiante = Estudiante(usuario_id=user.id, nombre_completo=nombre, edad=edad, curso_id=curso_id)
+        curso_nombre = f"{nivel} {letra}"
+        result = await db.execute(select(Curso).where(Curso.nombre == curso_nombre))
+        curso = result.scalar_one_or_none()
+        
+        if not curso:
+            curso = Curso(nombre=curso_nombre, establecimiento="N/A")
+            db.add(curso)
+            await db.flush()
+            
+        estudiante = Estudiante(usuario_id=user.id, nombre_completo=nombre, edad=15, curso_id=curso.id)
         db.add(estudiante)
     elif role == "orientador":
         orientador = Orientador(usuario_id=user.id, nombre_completo=nombre, departamento=departamento)

@@ -30,4 +30,9 @@ async function submitEvaluation(answers) {
   return data
 }
 
-export default { getQuestions, saveAnswer, submitEvaluation }
+async function getEstado() {
+  const { data } = await http.get('/evaluacion/estado')
+  return data
+}
+
+export default { getQuestions, saveAnswer, submitEvaluation, getEstado }

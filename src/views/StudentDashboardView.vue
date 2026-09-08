@@ -8,14 +8,17 @@
       </div>
       
       <nav class="sidebar__nav">
-        <a href="#" class="sidebar__link sidebar__link--active" @click.prevent>
+        <a href="#" 
+           class="sidebar__link" 
+           :class="{ 'sidebar__link--active': currentTab === 'dashboard' }"
+           @click.prevent="currentTab = 'dashboard'">
           Dashboard
         </a>
-        <a href="#" @click.prevent="startTest" class="sidebar__link">
-          Realizar Test
-        </a>
-        <a href="#" @click.prevent="scrollToHistory" class="sidebar__link">
-          Mi Historial
+        <a href="#" 
+           class="sidebar__link" 
+           :class="{ 'sidebar__link--active': currentTab === 'history' }"
+           @click.prevent="currentTab = 'history'">
+          Bitácora de Proceso
         </a>
       </nav>
 
@@ -23,13 +26,13 @@
         <div class="user-avatar-zone">
           <div class="avatar">JM</div>
           <div class="user-info">
-            <span class="user-name">José Miguel</span>
+            <span class="user-name">{{ studentName || 'Estudiante' }}</span>
             <span class="user-role">Estudiante</span>
           </div>
         </div>
-        <router-link to="/auth" class="logout-btn">
+        <a href="#" @click.prevent="logout" class="logout-btn">
           Cerrar Sesión
-        </router-link>
+        </a>
       </div>
     </aside>
 
@@ -62,19 +65,23 @@
       </header>
 
       <section class="welcome-section">
-        <h1 class="welcome-title">¡Hola de nuevo, José Miguel!</h1>
-        <p class="welcome-sub">Estudiante de 4° Medio · Centro Educativo Técnico Profesional</p>
+        <h1 class="welcome-title">¡Hola de nuevo, {{ studentName || 'Estudiante' }}!</h1>
+        <p class="welcome-sub">Estudiante · Plataforma Vócalis</p>
+        <p v-if="orientadorName" class="welcome-orientador">Tu orientador/a: <strong>Prof. {{ orientadorName }}</strong></p>
       </section>
 
-      <div class="dashboard-grid">
+      <div v-show="currentTab === 'dashboard'" class="dashboard-grid">
         
         <div v-if="!hasPreviousTest" class="action-card action-card--start">
           <div class="action-card__info">
             <span class="action-card__badge">Disponible ahora</span>
             <h2 class="action-card__title">Tu evaluación vocacional está lista</h2>
             <p class="action-card__desc">
-              Descubre tus fortalezas conductuales mediante el inventario científico BFI-44 de 44 ítems. 
-              Te tomará aproximadamente 8 minutos completarlo de forma secuencial.
+              Descubre tus fortalezas conductuales mediante el inventario científico BFI-44. 
+              Te tomará aproximadamente 8 minutos completarlo.
+            </p>
+            <p class="action-card__warning">
+              ⚡ 44 preguntas · sin límite de tiempo · una sola oportunidad
             </p>
             <button @click="startTest" class="btn btn--primary">
               Iniciar Evaluación Vocacional
@@ -114,49 +121,43 @@
           <div class="info-mini-card">
             <div>
               <h4 class="mini-card__title">Modelo Psicométrico</h4>
-              <p class="mini-card__desc">Basado en el Big Five Inventory (BFI-44), garantizando precisión y validez científica.</p>
+              <p class="mini-card__desc">
+                Basado en el Big Five Inventory (BFI-44), garantizando precisión y validez científica. 
+                Es uno de los modelos de personalidad más respaldados en investigación psicológica desde hace décadas.
+              </p>
             </div>
-          </div>
-
-          <div class="simulator-switch">
-            <p>Modo desarrollo — Simular estado del alumno:</p>
-            <button @click="toggleTestState" class="sim-btn">
-              Cambiar a: {{ hasPreviousTest ? 'Primer Ingreso' : 'Con Test Hecho' }}
-            </button>
           </div>
         </div>
 
       </div>
 
-      <section class="history-section" id="history-section">
-        <h3 class="history-title">Historial de Perfiles Guardados</h3>
+      <section v-show="currentTab === 'history'" class="history-section" id="history-section">
+        <h3 class="history-title">Bitácora de mi Proceso</h3>
         
-        <div class="history-table-container">
-          <table class="history-table">
-            <thead>
-              <tr>
-                <th>Fecha de Aplicación</th>
-                <th>Instrumento</th>
-                <th>Dimensión Dominante</th>
-                <th>Estado del Flujo</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(record, index) in historyRecords" :key="index">
-                <td><strong>{{ record.date }}</strong></td>
-                <td><span class="inst-tag">BFI-44</span></td>
-                <td>{{ record.dominant }}</td>
-                <td><span class="status-tag" :class="'status-tag--' + record.statusClass">{{ record.status }}</span></td>
-                <td>
-                  <button @click="viewLatestReport" class="table-action-btn">Ver Reporte</button>
-                </td>
-              </tr>
-              <tr v-if="historyRecords.length === 0">
-                <td colspan="5" class="empty-table-text">No registras perfiles guardados en períodos anteriores.</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="timeline-container">
+          <div v-if="timeline.registro" class="timeline-item">
+            <div class="timeline-dot timeline-dot--completed"></div>
+            <div class="timeline-content">
+              <h4>Registro en plataforma</h4>
+              <p>Te registraste el {{ formatDate(timeline.registro) }}</p>
+            </div>
+          </div>
+          
+          <div v-if="timeline.evaluacion" class="timeline-item">
+            <div class="timeline-dot timeline-dot--completed"></div>
+            <div class="timeline-content">
+              <h4>Cuestionario finalizado</h4>
+              <p>Completaste el cuestionario el {{ formatDate(timeline.evaluacion) }}</p>
+            </div>
+          </div>
+          
+          <div v-if="timeline.reporte" class="timeline-item">
+            <div class="timeline-dot timeline-dot--completed"></div>
+            <div class="timeline-content">
+              <h4>Reporte generado</h4>
+              <p>Tu reporte fue generado el {{ formatDate(timeline.reporte) }}</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -165,40 +166,69 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import authService from '../services/authService'
+import evaluacionService from '../services/evaluacionService'
 
 const router = useRouter()
 
-// Estado simulado del estudiante: true si ya rindió un test, false si es nuevo
+// Pestaña actual de la interfaz
+const currentTab = ref('dashboard')
+
+// Estado de la evaluación desde backend
 const hasPreviousTest = ref(false)
+const orientadorName = ref(null)
+const studentName = ref('')
+const timeline = ref({
+  registro: null,
+  evaluacion: null,
+  reporte: null
+})
+
+onMounted(async () => {
+  // Cargar datos de perfil básico
+  const profile = await authService.getProfile()
+  if (profile) {
+    studentName.value = profile.name
+  }
+  
+  // Cargar estado de la evaluación y datos del estudiante
+  try {
+    const estado = await evaluacionService.getEstado()
+    hasPreviousTest.value = estado.tiene_evaluacion && estado.estado === 'completada'
+    orientadorName.value = estado.orientador_nombre
+    
+    timeline.value.registro = estado.registro_fecha
+    timeline.value.evaluacion = estado.evaluacion_fecha
+    timeline.value.reporte = estado.reporte_fecha
+  } catch (err) {
+    console.error("Error cargando estado:", err)
+  }
+})
+
+function formatDate(dateString) {
+  if (!dateString) return ''
+  const d = new Date(dateString)
+  return d.toLocaleDateString('es-CL', {
+    day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute:'2-digit'
+  })
+}
 
 // Configuración de las etapas del proceso Camunda 8 BPMN
 const bpmStages = ['Registro', 'Evaluación', 'Procesamiento', 'Reporte Listo']
 
-// Índice actual del progreso BPM basado en el estado simulado del alumno
+// Índice actual del progreso BPM basado en el estado
 const currentBpmStageIndex = computed(() => {
-  return hasPreviousTest.value ? 3 : 1 // Etapa 'Reporte Listo' (3) o 'Evaluación' (1)
+  return hasPreviousTest.value ? 3 : 1
 })
 
 const currentBpmStageText = computed(() => {
   return bpmStages[currentBpmStageIndex.value]
 })
 
-// Registros de historial simulados dinámicamente según el switcher
-const historyRecords = computed(() => {
-  if (!hasPreviousTest.value) return []
-  return [
-    { date: '19 de Junio, 2026', dominant: 'Apertura a la Experiencia (O)', status: 'Finalizado', statusClass: 'success' },
-    { date: '14 de Abril, 2026', dominant: 'Amabilidad / Cooperación (A)', status: 'Archivado', statusClass: 'muted' }
-  ]
-})
-
-// Funciones de simulación y redirección hacia próximos mockups
-function toggleTestState() {
-  hasPreviousTest.value = !hasPreviousTest.value
-}
-
+// Redirección hacia próximos mockups
 function startTest() {
   router.push('/estudiante/evaluacion') // Redirección exacta
 }
@@ -207,9 +237,8 @@ function viewLatestReport() {
   router.push('/estudiante/reporte')
 }
 
-function scrollToHistory() {
-  const el = document.getElementById('history-section')
-  if (el) el.scrollIntoView({ behavior: 'smooth' })
+function logout() {
+  authService.logout()
 }
 </script>
 
@@ -419,7 +448,8 @@ function scrollToHistory() {
 /* ── Encabezado de Bienvenida ───────────────────────────────────────────── */
 .welcome-section { text-align: left; margin-bottom: 32px; }
 .welcome-title { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.8rem; margin-bottom: 4px; }
-.welcome-sub { font-size: 0.9rem; color: var(--c-muted); }
+.welcome-sub { font-size: 0.9rem; color: var(--c-muted); margin-bottom: 8px; }
+.welcome-orientador { font-size: 0.85rem; color: var(--c-primary); background: #EEF2FF; display: inline-block; padding: 4px 12px; border-radius: 100px; font-weight: 500; }
 
 /* ── Tarjetas Informativas y Dashboard Grid ─────────────────────────────── */
 .dashboard-grid {
@@ -427,7 +457,7 @@ function scrollToHistory() {
   grid-template-columns: 1fr 320px;
   gap: 24px;
   margin-bottom: 40px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .action-card {
@@ -459,7 +489,8 @@ function scrollToHistory() {
   color: #065F46;
 }
 .action-card__title { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.5rem; margin-bottom: 12px; }
-.action-card__desc { font-size: 0.92rem; line-height: 1.6; color: var(--c-muted); margin-bottom: 24px; }
+.action-card__desc { font-size: 0.92rem; line-height: 1.6; color: var(--c-muted); margin-bottom: 12px; }
+.action-card__warning { font-size: 0.85rem; font-weight: 600; color: #D97706; background: #FFFBEB; padding: 8px 12px; border-radius: 8px; margin-bottom: 24px; display: inline-block; }
 
 .action-card__visual {
   display: flex;
@@ -494,7 +525,7 @@ function scrollToHistory() {
 .q-stat span { color: var(--c-primary); font-weight: 700; margin-right: 4px; }
 
 /* Barra lateral informativa */
-.info-sidebar { display: flex; flex-direction: column; gap: 16px; }
+.info-sidebar { display: flex; flex-direction: column; gap: 16px; justify-content: space-between; height: 100%; }
 .info-mini-card {
   background: var(--c-surface);
   border: 1px solid var(--c-border);
@@ -508,83 +539,62 @@ function scrollToHistory() {
 .mini-card__title { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
 .mini-card__desc { font-size: 0.8rem; line-height: 1.4; color: var(--c-muted); }
 
-/* Switch de Desarrollo */
-.simulator-switch {
-  background: #FFFBEB;
-  border: 1px solid #FDE68A;
-  border-radius: var(--r-card);
-  padding: 16px;
-  text-align: left;
-}
-.simulator-switch p { font-size: 0.78rem; font-weight: 700; color: #92400E; margin-bottom: 8px; }
-.sim-btn {
-  width: 100%;
-  padding: 8px;
-  background: #F59E0B;
-  border: none;
-  border-radius: 8px;
-  color: #fff;
-  font-weight: 600;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
-/* ── Sección de Historial de Trazabilidad ────────────────────────────────── */
+/* ── Bitácora / Línea de Tiempo ───────────────────────────────────────── */
 .history-section { text-align: left; margin-top: 16px; }
-.history-title { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.2rem; margin-bottom: 16px; }
+.history-title { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.2rem; margin-bottom: 24px; }
 
-.history-table-container {
+.timeline-container {
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: var(--r-card);
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.01);
+  padding: 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
 }
-.history-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
-}
-.history-table th {
-  background: #F8FAFC;
-  padding: 14px 20px;
-  font-weight: 600;
-  color: var(--c-muted);
-  border-bottom: 1px solid var(--c-border);
-}
-.history-table td {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--c-border);
-}
-.inst-tag {
-  background: #F1F5F9;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.78rem;
-}
-.status-tag {
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 6px;
-}
-.status-tag--success { background: #D1FAE5; color: #065F46; }
-.status-tag--muted { background: #E2E8F0; color: #475569; }
 
-.table-action-btn {
-  background: none;
-  border: 1px solid var(--c-primary);
-  color: var(--c-primary);
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s;
+.timeline-item {
+  display: flex;
+  gap: 20px;
+  position: relative;
 }
-.table-action-btn:hover { background: var(--c-primary); color: #FFFFFF; }
-.empty-table-text { text-align: center; color: var(--c-muted); padding: 32px !important; font-style: italic; }
+
+.timeline-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 24px;
+  bottom: -32px;
+  width: 2px;
+  background: var(--c-border);
+}
+
+.timeline-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-border);
+  margin-top: 4px;
+  position: relative;
+  z-index: 2;
+}
+.timeline-dot--completed {
+  background: var(--c-primary);
+  box-shadow: 0 0 0 4px #EEF2FF;
+}
+
+.timeline-content h4 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--c-text);
+  margin-bottom: 4px;
+}
+
+.timeline-content p {
+  font-size: 0.85rem;
+  color: var(--c-muted);
+}
 
 /* Botón reutilizado del Home */
 .btn {

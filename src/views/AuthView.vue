@@ -63,23 +63,30 @@
             />
           </div>
 
-          <div v-if="!isLogin && form.role === 'estudiante'" class="form-row">
+          <div v-if="!isLogin && form.role === 'estudiante'" class="form-row form-row--curso">
             <div class="input-group">
-              <input 
-                v-model="form.edad" 
-                class="register__input" 
-                type="number" 
-                placeholder="Edad" 
-                min="12" max="99"
-                :required="!isLogin && form.role === 'estudiante'" 
-              />
+              <select 
+                v-model="form.nivel" 
+                class="register__input register__select" 
+                :required="!isLogin && form.role === 'estudiante'"
+              >
+                <option value="" disabled selected>Selecciona tu nivel</option>
+                <option value="1° Medio">1° Medio</option>
+                <option value="2° Medio">2° Medio</option>
+                <option value="3° Medio">3° Medio</option>
+                <option value="4° Medio">4° Medio</option>
+              </select>
             </div>
-            <div class="input-group">
+            <div class="input-group input-group--letra">
               <input 
-                v-model="form.curso" 
-                class="register__input" 
+                v-model="form.letra" 
+                class="register__input register__input--letra" 
                 type="text" 
-                placeholder="Curso (Ej: 4° Medio A)" 
+                placeholder="A" 
+                maxlength="1"
+                pattern="[A-La-l]"
+                title="Debe ser una letra entre la A y la L"
+                @input="form.letra = form.letra.toUpperCase().replace(/[^A-LA-L]/g, '')"
                 :required="!isLogin && form.role === 'estudiante'" 
               />
             </div>
@@ -162,8 +169,8 @@ const form = ref({
   name: '',
   email: '',
   password: '',
-  edad: '',
-  curso: '',
+  nivel: '',
+  letra: '',
   establecimiento: '',
   departamento: ''
 })
@@ -369,14 +376,31 @@ async function handleSubmit() {
   display: flex;
   gap: 12px;
 }
-.form-row .input-group:first-child { flex: 0.35; }
+.form-row--curso .input-group:first-child { flex: 1; }
+.form-row--curso .input-group--letra { flex: 0 0 68px; }
+
+.register__input--letra {
+  text-align: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.register__select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2364748B%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 10px auto;
+  cursor: pointer;
+}
 
 .register__input {
   background: var(--c-bg);
   border: 1px solid var(--c-border);
   border-radius: 12px;
-  padding: 14px 16px;
-  font-size: 0.92rem;
+  padding: 16px 20px;
+  box-sizing: border-box;
+  font-size: 0.95rem;
   color: var(--c-text);
   font-family: 'Inter', sans-serif;
   width: 100%;

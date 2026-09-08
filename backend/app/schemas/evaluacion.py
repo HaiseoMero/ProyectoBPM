@@ -23,7 +23,13 @@ class SubmitEvaluationResponse(BaseModel):
     reportId: int
     status: str
 
+from datetime import datetime
+
 class EstadoEvaluacion(BaseModel):
     tiene_evaluacion: bool
     estado: str | None = None  # 'en_progreso', 'completada', 'procesada'
     bpm_estado: str | None = None  # 'registro', 'evaluacion', 'procesamiento', 'reporte_listo'
+    registro_fecha: datetime | None = None
+    evaluacion_fecha: datetime | None = None
+    reporte_fecha: datetime | None = None
+    orientador_nombre: str | None = None

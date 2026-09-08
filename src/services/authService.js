@@ -37,8 +37,8 @@ async function register(payload) {
       password: payload.password,
       nombre_completo: payload.name,
       role: payload.role,
-      edad: payload.edad ? parseInt(payload.edad) : undefined,
-      curso_id: payload.curso_id ? parseInt(payload.curso_id) : undefined,
+      nivel: payload.nivel || undefined,
+      letra: payload.letra || undefined,
       departamento: payload.departamento || undefined
     }
     const { data } = await http.post('/auth/register', body)
@@ -56,6 +56,7 @@ async function register(payload) {
  */
 function logout() {
   localStorage.removeItem('vocalis_token')
+  window.location.replace('/auth')
 }
 
 export default { login, register, logout }

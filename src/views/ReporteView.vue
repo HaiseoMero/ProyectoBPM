@@ -11,9 +11,6 @@
         <router-link to="/estudiante/dashboard" class="sidebar__link">
           Dashboard
         </router-link>
-        <router-link to="/estudiante/evaluacion" class="sidebar__link">
-          Realizar Test
-        </router-link>
         <router-link to="/estudiante/dashboard#history-section" class="sidebar__link">
           Mi Historial
         </router-link>
@@ -27,9 +24,9 @@
             <span class="user-role">Estudiante</span>
           </div>
         </div>
-        <router-link to="/auth" class="logout-btn">
+        <a href="#" @click.prevent="logout" class="logout-btn">
           Cerrar Sesión
-        </router-link>
+        </a>
       </div>
     </aside>
 
@@ -187,6 +184,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import reporteService from '../services/reporteService'
+import authService from '../services/authService'
 
 const loading = ref(true)
 const evaluatedAt = ref('')
@@ -245,6 +243,10 @@ function toggleAccordion(index) {
 
 function simulatePDFExport() {
   alert('Funcionalidad de exportación PDF mapeada como una Mejora Futura fuera del MVP, tal como define el apartado 3.8 de tu informe.')
+}
+
+function logout() {
+  authService.logout()
 }
 </script>
 

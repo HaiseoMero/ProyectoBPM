@@ -92,19 +92,52 @@ async def submit_evaluation(request: SubmitEvaluationRequest, estudiante: Estudi
 
 @router.get("/estado", response_model=EstadoEvaluacion)
 async def get_estado(estudiante: Estudiante = Depends(require_estudiante), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Evaluacion).where(Evaluacion.estudiante_id == estudiante.id))
+    from sqlalchemy.orm import selectinload
+    from app.models.curso import Curso
+    
+    result_est = await db.execute(
+        select(Estudiante)
+        .options(selectinload(Estudiante.usuario), selectinload(Estudiante.curso).selectinload(Curso.orientador))
+        .where(Estudiante.id == estudiante.id)
+    )
+    est = result_est.scalar_one()
+    
+    orientador_nombre = None
+    if est.curso and est.curso.orientador:
+        orientador_nombre = est.curso.orientador.nombre_completo
+
+    result = await db.execute(
+        select(Evaluacion)
+        .options(selectinload(Evaluacion.reporte))
+        .where(Evaluacion.estudiante_id == estudiante.id)
+    )
     evaluacion = result.scalar_one_or_none()
     
+    registro_fecha = est.usuario.created_at
+    
     if not evaluacion:
-        return EstadoEvaluacion(tiene_evaluacion=False)
+        return EstadoEvaluacion(
+            tiene_evaluacion=False,
+            registro_fecha=registro_fecha,
+            orientador_nombre=orientador_nombre
+        )
         
     from app.models.proceso_bpm import ProcesoBPM
     proc_result = await db.execute(select(ProcesoBPM).where(ProcesoBPM.evaluacion_id == evaluacion.id))
     proceso = proc_result.scalar_one_or_none()
     bpm_estado = proceso.estado_actual if proceso else None
     
+    
+    reporte_fecha = None
+    if evaluacion.reporte:
+        reporte_fecha = evaluacion.reporte.created_at
+        
     return EstadoEvaluacion(
         tiene_evaluacion=True,
         estado=evaluacion.estado,
-        bpm_estado=bpm_estado
+        bpm_estado=bpm_estado,
+        registro_fecha=registro_fecha,
+        evaluacion_fecha=evaluacion.completed_at,
+        reporte_fecha=reporte_fecha,
+        orientador_nombre=orientador_nombre
     )

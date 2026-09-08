@@ -1,39 +1,16 @@
 <template>
-  <div class="dashboard-layout">
-    
-    <aside class="sidebar">
-      <div class="sidebar__brand">
-        <span class="sidebar__logo-icon">◈</span>
-        <span class="sidebar__logo-text">Vócalis</span>
-      </div>
-      
-      <nav class="sidebar__nav">
-        <router-link to="/estudiante/dashboard" class="sidebar__link">
-          Dashboard
-        </router-link>
-        <a href="#" class="sidebar__link sidebar__link--active">
-          Realizar Test
-        </a>
-        <router-link to="/estudiante/dashboard#history-section" class="sidebar__link">
-          Mi Historial
-        </router-link>
-      </nav>
-
-      <div class="sidebar__footer">
-        <div class="user-avatar-zone">
-          <div class="avatar">JM</div>
-          <div class="user-info">
-            <span class="user-name">José Miguel</span>
-            <span class="user-role">Estudiante</span>
-          </div>
-        </div>
-        <router-link to="/auth" class="logout-btn">
-          Cerrar Sesión
-        </router-link>
-      </div>
-    </aside>
-
+  <div class="test-layout">
     <main class="main-content">
+      
+      <div class="top-navigation">
+        <router-link to="/estudiante/dashboard" class="back-btn">
+          <span class="btn__arrow">←</span> Volver al Dashboard
+        </router-link>
+        <div class="brand">
+          <span class="brand-icon">◈</span>
+          <span class="brand-text">Vócalis</span>
+        </div>
+      </div>
       
       <header class="bpm-progress-card">
         <div class="bpm-header">
@@ -157,6 +134,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import evaluacionService from '../services/evaluacionService'
+import authService from '../services/authService'
 
 const router = useRouter()
 
@@ -233,12 +211,15 @@ async function nextPage() {
     submitting.value = false
   }
 }
+
+function logout() {
+  authService.logout()
+}
 </script>
 
 <style scoped>
 /* ── Infraestructura y Rejilla General ──────────────────────────────────── */
-.dashboard-layout {
-  --sidebar-w:  260px;
+.test-layout {
   --c-bg:       #F8FAFC;
   --c-surface:  #FFFFFF;
   --c-primary:  #4F46E5;
@@ -252,64 +233,36 @@ async function nextPage() {
   color: var(--c-text);
   font-family: 'Inter', sans-serif;
   display: flex;
+  justify-content: center;
 }
 
-/* ── Sidebar (Consistente al 100%) ───────────────────────────────────────── */
-.sidebar {
-  width: var(--sidebar-w);
-  background: var(--c-surface);
-  border-right: 1px solid var(--c-border);
+/* ── Navegación Superior Simplificada ───────────────────────────────────── */
+.top-navigation {
   display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0; bottom: 0; left: 0;
-  padding: 32px 24px;
-  z-index: 50;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
 }
-.sidebar__brand {
+.back-btn {
+  color: var(--c-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Poppins', sans-serif;
-  font-weight: 800;
-  font-size: 1.3rem;
-  margin-bottom: 40px;
+  transition: color 0.2s;
 }
-.sidebar__logo-icon { color: var(--c-primary); }
-.sidebar__nav { display: flex; flex-direction: column; gap: 8px; flex: 1; }
-.sidebar__link {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  color: var(--c-muted);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.2s;
-}
-.sidebar__link:hover, .sidebar__link--active { background: #EEF2FF; color: var(--c-primary); }
-.sidebar__icon { font-size: 1.1rem; }
-.sidebar__footer { border-top: 1px solid var(--c-border); padding-top: 20px; display: flex; flex-direction: column; gap: 16px; }
-.user-avatar-zone { display: flex; align-items: center; gap: 12px; }
-.avatar {
-  width: 40px; height: 40px;
-  background: #C7D2FE; color: var(--c-primary);
-  border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem;
-}
-.user-info { display: flex; flex-direction: column; text-align: left; }
-.user-name { font-weight: 600; font-size: 0.88rem; }
-.user-role { font-size: 0.75rem; color: var(--c-muted); }
-.logout-btn { color: #EF4444; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; }
-.logout-btn:hover { background: #FEF2F2; }
+.back-btn:hover { color: var(--c-primary); }
+.brand { display: flex; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.2rem; }
+.brand-icon { color: var(--c-primary); }
 
-/* ── Margen de contenido principal con la separación extra aplicada ─────── */
+/* ── Margen de contenido principal centrado ─────────────────────────────── */
 .main-content {
   flex: 1;
-  margin-left: calc(var(--sidebar-w) + 32px);
-  padding: 40px 48px;
-  max-width: 1100px;
+  padding: 32px 24px;
+  max-width: 1000px;
+  width: 100%;
 }
 
 /* ── Barra de Progreso Superior (BPM) ───────────────────────────────────── */
@@ -460,8 +413,7 @@ async function nextPage() {
 .btn--ghost:disabled { color: #CBD5E1; border-color: #E2E8F0; cursor: not-allowed; }
 
 @media (max-width: 900px) {
-  .sidebar { display: none; }
-  .main-content { margin-left: 0; padding: 20px; }
+  .main-content { padding: 20px; }
   .test-header-zone { flex-direction: column; align-items: flex-start; }
   .progress-stats-box { width: 100%; }
   .likert-table th:not(.col-question), .option-cell { padding: 8px 4px; }

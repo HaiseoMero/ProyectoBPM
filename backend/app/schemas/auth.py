@@ -16,8 +16,8 @@ class RegisterRequest(BaseModel):
     nombre_completo: str = Field(min_length=2)
     role: Literal["estudiante", "orientador"]
     # Student-specific (optional for orientador)
-    edad: int | None = None
-    curso_id: int | None = None
+    nivel: str | None = None
+    letra: str | None = None
     # Orientador-specific
     departamento: str | None = None
 

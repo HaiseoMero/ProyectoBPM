@@ -33,10 +33,10 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db))
             detail="El email ya está registrado"
         )
     
-    if request.role == "estudiante" and (request.edad is None or request.curso_id is None):
+    if request.role == "estudiante" and (request.nivel is None or request.letra is None):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Edad y curso son requeridos para estudiantes"
+            detail="El nivel y letra del curso son requeridos para estudiantes"
         )
         
     await create_user(
@@ -45,8 +45,8 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db))
         password=request.password,
         role=request.role,
         nombre=request.nombre_completo,
-        edad=request.edad,
-        curso_id=request.curso_id,
+        nivel=request.nivel,
+        letra=request.letra,
         departamento=request.departamento
     )
     

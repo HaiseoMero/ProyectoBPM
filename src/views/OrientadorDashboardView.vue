@@ -27,9 +27,9 @@
             <span class="user-role">Orientadora Escolar</span>
           </div>
         </div>
-        <router-link to="/auth" class="logout-btn">
+        <a href="#" @click.prevent="logout" class="logout-btn">
           Cerrar Sesión
-        </router-link>
+        </a>
       </div>
     </aside>
 
@@ -172,6 +172,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import orientadorService from '../services/orientadorService'
+import authService from '../services/authService'
 
 const router = useRouter()
 
@@ -212,6 +213,10 @@ function viewReport(student) {
 
 function showFeatureAlert() {
   alert('Esta sección corresponde al panel extendido del Administrador, proyectada como una mejora futura.')
+}
+
+function logout() {
+  authService.logout()
 }
 </script>
 
