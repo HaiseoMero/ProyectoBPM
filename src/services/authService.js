@@ -52,6 +52,19 @@ async function register(payload) {
 }
 
 /**
+ * Obtiene el perfil del usuario autenticado desde GET /auth/me.
+ */
+async function getProfile() {
+  try {
+    const { data } = await http.get('/auth/me')
+    return data
+  } catch (error) {
+    console.error('Error al obtener perfil:', error)
+    return null
+  }
+}
+
+/**
  * Cierra la sesión eliminando el token.
  */
 function logout() {
@@ -59,4 +72,4 @@ function logout() {
   window.location.replace('/auth')
 }
 
-export default { login, register, logout }
+export default { login, register, logout, getProfile }

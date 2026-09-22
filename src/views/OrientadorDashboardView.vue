@@ -21,10 +21,10 @@
 
       <div class="sidebar__footer">
         <div class="user-avatar-zone">
-          <div class="avatar avatar--admin">LC</div>
+          <div class="avatar avatar--admin">{{ userInitials }}</div>
           <div class="user-info">
-            <span class="user-name">Prof. Lismary C.</span>
-            <span class="user-role">Orientadora Escolar</span>
+            <span class="user-name">{{ userName }}</span>
+            <span class="user-role">Orientador(a) Escolar</span>
           </div>
         </div>
         <a href="#" @click.prevent="logout" class="logout-btn">
@@ -46,19 +46,19 @@
       <section class="metrics-grid">
         <div class="metric-card">
           <div class="metric-card__data">
-            <span class="metric-num">142</span>
+            <span class="metric-num">{{ totalAlumnos }}</span>
             <span class="metric-label">Alumnos Asignados</span>
           </div>
         </div>
         <div class="metric-card">
           <div class="metric-card__data">
-            <span class="metric-num">38</span>
+            <span class="metric-num">{{ flujosEnCurso }}</span>
             <span class="metric-label">Flujos en Evaluación</span>
           </div>
         </div>
         <div class="metric-card">
           <div class="metric-card__data">
-            <span class="metric-num" style="color: #10B981;">104</span>
+            <span class="metric-num" style="color: #10B981;">{{ reportesListos }}</span>
             <span class="metric-label">Reportes Listos</span>
           </div>
         </div>
@@ -79,9 +79,7 @@
             <label>Curso</label>
             <select v-model="filters.course" class="filter-select">
               <option value="">Todos los cursos</option>
-              <option value="4° Medio A">4° Medio A</option>
-              <option value="4° Medio B">4° Medio B</option>
-              <option value="4° Medio C">4° Medio C</option>
+              <option v-for="course in availableCourses" :key="course" :value="course">{{ course }}</option>
             </select>
           </div>
           <div class="filter-group">
@@ -184,8 +182,45 @@ const filters = ref({
 
 const studentsPool = ref([])
 const loadingStudents = ref(true)
+const userName = ref('Orientador')
+
+// Métricas calculadas dinámicamente desde los datos reales
+const totalAlumnos = computed(() => studentsPool.value.length)
+
+const flujosEnCurso = computed(() => {
+  return studentsPool.value.filter(s => 
+    s.bpmStatus === 'Evaluación' || s.bpmStatus === 'Registro'
+  ).length
+})
+
+const reportesListos = computed(() => {
+  return studentsPool.value.filter(s => s.bpmStatus === 'Reporte Listo').length
+})
+
+// Cursos disponibles extraídos dinámicamente de los estudiantes
+const availableCourses = computed(() => {
+  const courses = new Set(studentsPool.value.map(s => s.course))
+  return [...courses].sort()
+})
+
+// Iniciales del nombre del orientador
+const userInitials = computed(() => {
+  return userName.value
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase()
+})
 
 onMounted(async () => {
+  // Cargar perfil del orientador autenticado
+  const profile = await authService.getProfile()
+  if (profile) {
+    userName.value = profile.name
+  }
+
+  // Cargar lista de estudiantes
   studentsPool.value = await orientadorService.getStudents()
   loadingStudents.value = false
 })
