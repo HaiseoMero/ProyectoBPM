@@ -1,44 +1,26 @@
 # Validación integral del MVP de Vócalis
 
-Fecha: 25 de septiembre de 2026. Fuente de verdad: código y ejecución local; `resumen_proyecto.md` se leyó como contexto y no se actualizó. No se creó ningún tag.
+Fecha: 27 de septiembre de 2026. Fuente de verdad: código y ejecuciones locales en MySQL 8.0.46, Zeebe 8.6.7, Python 3.14.7 y Firefox 156.0.1. No se creó ningún tag.
 
 ## Resultado y alcance
 
-**La API y el recorrido BPM funcionan con el arranque de desarrollo `--reload` usado por Compose. El arranque sin `--reload` tiene un fallo confirmado del worker y no debe darse por aprobado.** La validación HTTP no sustituye la comprobación visual en navegador ni las sesiones de usabilidad.
+**El recorrido estudiante → BFI-44 → reporte → orientador y la recuperación ante caída de Zeebe pasaron con Uvicorn normal, sin `--reload`.** Se ejecutó un navegador real en escritorio y móvil. Las sesiones de usabilidad con personas y la validación en un despliegue de producción siguen pendientes.
 
 | Verificación | Resultado | Evidencia/alcance |
 |---|---|---|
-| Suite backend completa | 186 aprobadas, 0 omitidas, 0 fallidas | Pytest, incluidas las siete pruebas MySQL opcionales |
-| Cuatro pruebas MySQL de registro/migración/seed | 4 aprobadas | `tests/test_registro_mysql.py`; cada fixture crea y elimina su propia BD UUID |
-| Tres pruebas MySQL de consistencia BPM | 3 aprobadas | `tests/test_bpm_mysql.py`; transacciones y bloqueos reales, RPC Zeebe simulados en estos tests |
-| Frontend existente | 4 aprobadas | `node --test tests/frontend/reporte-neutral.test.mjs`; renderizado de plantilla, no navegador |
-| Compilación frontend | Aprobada | `npm run build` |
-| ESLint de las cuatro vistas principales y util BPM | Aprobado | Sin `--fix`; no se editaron componentes |
-| Revisión del diff | Aprobada | `git diff --check` y comprobación de espacios de los tres archivos nuevos no indexados |
-| Registro estudiante/orientador y asociación | Aprobados vía HTTP real | Código privado aleatorio; alumno sólo en el curso del orientador del establecimiento correspondiente |
-| Guardar, cerrar sesión lógica y continuar | Aprobado vía HTTP real | Guardadas 20 respuestas, nuevo login, recuperadas desde MySQL y completadas las 44 |
-| Envío y OCEAN | Aprobados vía HTTP real | 44 valores 3 producen cinco puntajes 0,5; envío final persiste las 44 respuestas |
-| Reportes y permisos | Aprobados vía HTTP real | Contratos iguales entre consulta propia, por ID y por orientador; alumno ajeno 404 y orientador ajeno 403 |
-| Una evaluación y bloqueo posterior | Aprobados | Reanudación conserva una fila; edición y reenvío completados devuelven 400 |
-| Migraciones MySQL 8.0.46 | Aprobadas en BD nueva | Inicialización del esquema y `alembic upgrade head` hasta `20260924_bpm_outbox`; migraciones sobre datos antiguos cubiertas además por los tests MySQL |
-| Despliegue e inicio Zeebe 8.6.7 | Aprobados | BPMN original desplegado, clave real persistida; mensajes correlacionados y jobs creados |
-| Avance BPM con `--reload` | Aprobado en recorrido normal | API estudiante observó `calculando_ocean` y `reporte_listo`; endpoint orientador también refleja el estado final |
-| Caída del broker | Reporte conservado y publicación recuperada | Se detuvo sólo el broker temporal; el evento quedó pendiente y el reporte siguió disponible |
-| Recuperación BPM completa con `--reload` | Aprobada | Tras reiniciar Zeebe llega a `reporte_listo`; evento `consumido`, sin reenviar el cuestionario |
-| Arranque sin `--reload` | **Fallido** | No llega a `reporte_listo`; detalles abajo |
-| Estados visibles en navegador | Pendiente manual | Se comprobaron contratos y mapeo en código; no se ejecutó una sesión de navegador automatizada |
-| Latencia con 30 usuarios | Procedimiento preparado, no medida | No hay resultados de rendimiento ni aprobación de un SLA |
-| Usabilidad con cinco participantes | Pauta preparada, no ejecutada | No se atribuyen opiniones ni resultados a usuarios inexistentes |
+| Suite backend completa | **198 aprobadas, 0 omitidas, 0 fallidas** | Incluidas nueve pruebas MySQL opcionales: cinco de registro/migración/seed y cuatro de BPM/concurrencia |
+| Frontend existente | 4 aprobadas | `node --test tests/frontend/reporte-neutral.test.mjs`; pruebas de plantilla |
+| Compilación y calidad frontend | Aprobadas | `npm run build`, ESLint dirigido a las cuatro vistas modificadas y `git diff --check` |
+| Instalación aislada MySQL | Aprobada | BD UUID nueva, `Base.metadata.create_all` y tres migraciones Alembic hasta `20260924_bpm_outbox`; solo 44 preguntas cargadas, sin seed destructivo |
+| E2E API/MySQL/Zeebe sin `--reload` | **26/26 comprobaciones** | Registro de ambos roles, curso, parcial/reanudación, 44 respuestas, envío, reporte, autorización por curso, BPMN real y `reporte_listo` |
+| Caída y recuperación de Zeebe | Aprobada | Reporte conservado y accesible con BPM pendiente; reinicio del mismo broker, reintento de outbox y avance a `reporte_listo` |
+| Navegador real | **34 verificaciones funcionales y 3 de error/reintento** | Firefox headless, build de Vue, 1440×900 y 390×844; rutas y capturas abajo |
+| Carga local de 30 usuarios | **30/30 recorridos; 1500 solicitudes; 0 errores** | Una corrida, p95 máximo por operación 1,216 s; criterio <3 s **por petición HTTP**, no por recorrido ni renderizado |
+| Usabilidad con cinco participantes | Pendiente | Pauta preparada; no hay resultados de personas reales |
 
-### Fallo reproducido durante la validación
+### Arranque del worker y límite de la prueba
 
-Con `uvicorn app.main:app` sin recarga, el canal gRPC creado al importar `app/worker.py:10-11` queda asociado a un bucle distinto del usado por `worker.work()` (`app/worker.py:55`). Se observó `RuntimeError: ... Future ... attached to a different loop` en los tres pollers. Uvicorn 0.52.4 hace una carga anticipada de la aplicación en este modo. La tarea creada en `app/main.py:19` falla, pero la API sigue respondiendo; su excepción se recoge con `return_exceptions=True` al cerrar (`app/main.py:26`) y no acredita salud BPM.
-
-Se reprodujo en Python 3.14.7 local y en Python 3.11.16 de la imagen backend disponible. La imagen contiene las mismas versiones de pyzeebe/gRPC/Uvicorn, aunque está desactualizada respecto a `aiosqlite`; esta comprobación Docker fue diagnóstica, no una certificación de una imagen reconstruida con todos los requirements actuales.
-
-En la ejecución normal fallaron tres comprobaciones: llegada a `reporte_listo`, estado final del endpoint orientador y finalización tras recuperar el broker. El mensaje sí se publicó, se correlacionó y creó `calcular-ocean`. Con `--reload`, usado por el Compose actual, el worker Docker consumió los jobs pendientes de ambas evaluaciones hasta `reporte_listo`; después se repitió la demo desde una BD y un broker nuevos: **25 comprobaciones aprobadas**, incluida la recuperación completa tras la caída.
-
-Corrección pendiente recomendada: crear/cerrar el canal y el worker dentro del ciclo asíncrono del lifespan, supervisar su tarea y añadir una prueba del arranque real sin recarga. **No se modificó código del producto para ocultar este resultado.** `--reload` permite la demo de desarrollo, pero no constituye una solución para despliegue sin recarga.
+El fallo histórico sin recarga se debía a crear el canal gRPC al importar `app/worker.py`, antes del event loop definitivo. El código actual crea el canal, cliente y worker dentro del lifespan activo; cierra las referencias al apagar y hace observables los fallos de tareas. Tres tests de ciclo de vida cubren esta conducta. La prueba integrada inició `uvicorn app.main:app` sin recarga, desplegó el BPMN y observó jobs reales hasta `reporte_listo`, también después de reiniciar el broker. No se ha certificado una imagen backend reconstruida ni un despliegue con múltiples réplicas.
 
 ### Recuperación y límites
 
@@ -50,31 +32,25 @@ Los paneles consumen el estado al cargar la vista (`StudentDashboardView.vue:219
 
 ## Cobertura backend medida
 
-Medición con coverage.py 7.16.1, `source=['app']`, ramas activadas, sin excluir `main.py`, workers ni archivos con cobertura baja. Denominador: código Python de `backend/app`, no tests ni migraciones.
+Medición con coverage.py 7.16.1, `--branch --source=app`, sobre todo `backend/app`; tests, migraciones y validador externo no entran en el denominador.
 
 | Métrica | Resultado |
 |---|---|
-| Líneas ejecutadas | **812 / 957 = 84,85 %** |
-| Ramas ejecutadas | **159 / 196 = 81,12 %** |
-| Combinación líneas + ramas de coverage.py | **84,22 %** |
+| Líneas ejecutadas | **917 / 1004 = 91,33 %** |
+| Ramas ejecutadas | **175 / 212 = 82,55 %** |
+| Combinación líneas + ramas de coverage.py | **89,80 %** |
 
-Los 186 tests son un conteo, no un porcentaje de cobertura. Esta medición corresponde a pytest; la demo externa se registra por separado y no se sumó artificialmente a la cobertura. `app/main.py` y `app/worker.py` tienen 0 % en esa suite. Esto explica por qué el fallo de arranque pudo coexistir con todos los tests aprobados.
+Las 198 pruebas son un conteo, no un porcentaje de cobertura. `main.py` alcanzó 96 % y `worker.py` 44 % en pytest; el avance real de Zeebe se comprobó aparte. Sin `VOCALIS_TEST_MYSQL_ADMIN_URL` se omiten **nueve** pruebas MySQL y no deben contarse como aprobadas. Los fixtures crean y eliminan sólo sus bases UUID temporales; el seed destructivo se invoca únicamente en una de esas bases aisladas.
 
-Desglose: autenticación/registro 37; respuestas BFI-44 30; reportes 53; reglas vocacionales 29; entrega BPM 15; estado orientador 6; OCEAN 4; migración evaluación 3; migración registro 2; MySQL registro 4 y MySQL BPM 3.
-
-Reproducción desde `backend/`, con un entorno virtual activo y la URL administrativa del laboratorio configurada:
+Reproducción desde `backend/`, con un entorno virtual activo y la URL administrativa del laboratorio configurada de forma privada:
 
 ```bash
-python -m pip install coverage==7.16.1
 export PYTHONDONTWRITEBYTECODE=1
 export COVERAGE_FILE=/tmp/vocalis-mvp.coverage
 python -B -m coverage run --branch --source=app -m pytest tests -q -ra -p no:cacheprovider
 python -B -m coverage report
 python -B -m coverage json -o /tmp/vocalis-coverage.json
-python -B -m coverage html -d /tmp/vocalis-coverage-html
 ```
-
-Sin `VOCALIS_TEST_MYSQL_ADMIN_URL` se omiten **siete**, no cuatro, pruebas. No se deben presentar como aprobadas. Con esa variable, los fixtures crean bases `vocalis_test_registro_<uuid>` y sólo eliminan esas mismas bases. El test que invoca el seed destructivo lo hace únicamente dentro de su BD temporal.
 
 ## Demo reproducible desde cero
 
@@ -131,7 +107,7 @@ Los límites de disco siguen la configuración de desarrollo existente; reservar
 ```bash
 cd backend
 python -B scripts/validate_mvp.py \
-  --gateway 127.0.0.1:27650 --zeebe-container vocalis-validation-zeebe --reload
+  --gateway 127.0.0.1:27650 --zeebe-container vocalis-validation-zeebe
 ```
 
 El script:
@@ -145,7 +121,7 @@ El script:
 7. Escribe `checks.json`, logs, revisión, topología, despliegue y estados de outbox en `/tmp/vocalis-demo-*`. `environment.json` es privado (0600, directorio 0700); contiene secretos y no debe publicarse.
 8. Detiene Uvicorn y elimina sólo su BD nueva. No elimina automáticamente el broker, para permitir recoger evidencias. Un check fallido devuelve exit code 1.
 
-Para reproducir el fallo de arranque quitar `--reload`; `--diagnose-worker` añade un observador temporal que registra la excepción y vuelve a lanzarla, sin reemplazar los workers ni sus transacciones. La demo aprobada no necesita ese observador.
+El comando anterior usa Uvicorn normal, sin `--reload`. `--diagnose-worker` conserva utilidad diagnóstica, pero no se requiere para acreditar el avance actual.
 
 ### 4. Continuar la demo manual en Vue
 
@@ -159,8 +135,8 @@ import json, os, subprocess, sys
 from pathlib import Path
 folder = Path(os.environ['VOCALIS_DEMO_ARTIFACTS'])
 env = dict(os.environ, **json.loads((folder / 'environment.json').read_text()))
-subprocess.run([sys.executable, '-B', '-m', 'uvicorn', 'app.main:app', '--reload',
-                '--reload-dir', 'app', '--host', '127.0.0.1', '--port', '8000'], env=env, check=True)
+subprocess.run([sys.executable, '-B', '-m', 'uvicorn', 'app.main:app',
+                '--host', '127.0.0.1', '--port', '8000'], env=env, check=True)
 PY
 ```
 
@@ -178,8 +154,8 @@ Pauta manual de aceptación:
 - Responder parcialmente, salir tras confirmar guardados, volver a iniciar sesión y continuar con selecciones recuperadas. Verificar 44 respuestas, un solo intento y edición bloqueada tras finalizar.
 - Ver los cinco puntajes y etiquetas del radar, ausencia de recomendación inventada cuando las reglas no cubren el caso, nombre correcto y mismo reporte desde ambos roles.
 - Recargar ambos paneles después de la finalización y comprobar `Reporte disponible`. No prometer actualización automática ni permanencia visible de fases instantáneas.
-- Comprobar «Mi Historial», fechas reales, errores de conexión y reintentos; distinguir controles fuera del MVP, como PDF, de funciones implementadas.
-- Registrar navegador/versión, capturas con datos sintéticos, pasos, resultado esperado/obtenido y cualquier incidencia. No dar estos pasos por aprobados sin ejecutarlos visualmente.
+- Comprobar «Mi Historial», fechas reales, errores de conexión y reintentos; comprobar que no se ofrece exportación PDF dentro del MVP.
+- Registrar navegador/versión, capturas con datos sintéticos, pasos, resultado esperado/obtenido y cualquier incidencia. Repetir con personas en revisión visual/uso real; la automatización no sustituye esa observación.
 
 ### 5. Cierre seguro del laboratorio
 
@@ -188,7 +164,7 @@ Archivar sólo evidencia sin secretos. Verificar propietario y etiqueta antes de
 ```bash
 # Sólo los recursos que se crearon con los comandos de esta guía.
 docker inspect vocalis-validation-zeebe --format '{{ index .Config.Labels "vocalis.validation" }}'
-docker rm -f -v vocalis-validation-zeebe
+docker rm -f vocalis-validation-zeebe
 # Si se creó el MySQL aislado de esta guía, y una vez terminadas todas las pruebas:
 docker rm -f "$DEMO_MYSQL"
 docker volume rm "$DEMO_MYSQL_VOLUME"
@@ -197,7 +173,7 @@ unset MYSQL_ROOT_PASSWORD VOCALIS_TEST_MYSQL_ADMIN_URL
 
 ## Procedimiento de latencia: 30 usuarios concurrentes
 
-Se preparó `backend/scripts/measure_latency.py`; no se ejecutó la medición de 30 usuarios. Su destino debe ser la API del laboratorio conservado, nunca la BD de desarrollo con datos ajenos.
+Se ejecutó `backend/scripts/measure_latency.py` contra la API del laboratorio aislado después de corregir bloqueos de MySQL reproducidos en la primera corrida. El destino debe ser siempre una BD aislada.
 
 ```bash
 # Desde backend con la API y Zeebe del laboratorio disponibles.
@@ -214,9 +190,9 @@ Protocolo de medición:
 
 1. Registrar commit **y estado del árbol de trabajo**, versiones instaladas, CPU/RAM, límites Docker, configuración de pools, modo Uvicorn, puerto y si cliente/servidor comparten máquina.
 2. Confirmar salud de MySQL y Zeebe y banco BFI-44. Usar una base exclusiva; no reutilizar un alumno completado. No ejecutar pytest/build simultáneamente con la medición.
-3. Hacer una corrida de ensayo no reportada, luego tres corridas de 30 usuarios en condiciones iguales, identificadas por separado. El script genera usuarios nuevos por corrida. Documentar si se reinicia la BD/broker entre corridas; no mezclar una ejecución fría con otras calientes sin indicarlo.
+3. Para un criterio estadístico de entrega, repetir tres corridas de 30 usuarios en condiciones iguales, identificadas por separado. Aquí sólo se acreditó **una corrida final**; las corridas iniciales con fallos se conservaron como evidencia diagnóstica. El script genera usuarios nuevos por corrida.
 4. Recoger `docker stats --no-stream`, logs de API/Zeebe, muestras y errores durante cada corrida. Informar resultados individuales, dispersión entre corridas y cantidad de muestras; 30 envíos por corrida dan poca precisión en p99.
-5. Definir el umbral de aceptación antes de medir. No hay un SLA verificado en esta entrega. No extrapolar estas mediciones locales a Internet ni a capacidad máxima.
+5. El umbral local de 3 s se evaluó por petición HTTP con los percentiles que calcula el script; la única corrida final quedó por debajo. Repetir en un entorno representativo antes de afirmar un SLA o capacidad máxima.
 
 ## Pauta de usabilidad: cinco usuarios
 
@@ -234,13 +210,12 @@ Para cada tarea: éxito sin ayuda / con ayuda / no completada; tiempo inicio-fin
 
 ## Evidencias de esta ejecución
 
-Artefactos locales temporales; guardar una copia sin secretos si se necesita permanencia:
+Artefactos locales temporales, con cuentas y variables privadas separadas de los resultados; no publicar `environment.json`, `accounts.json` ni credenciales.
 
-- Suite/cobertura: `/tmp/vocalis-mvp-coverage-5jby5rd8/` (`tests.xml`, `coverage.json`, HTML).
-- Demo sin recarga: `/tmp/vocalis-demo-1_8_s8nt/` (checks, outbox, trazas del broker).
-- Demo completa con recarga: `/tmp/vocalis-demo-_237_7zx/` (25 checks aprobados, ambos eventos de completar consumidos).
-- Diagnóstico local/Docker: `/tmp/vocalis-demo-fm23tlur/` (excepción de worker, modo Docker con/sin recarga).
+- Suite y cobertura: `/tmp/vocalis-stage2-coverage.json`; **198 aprobadas**, incluidas **nueve MySQL**, cobertura combinada **89,80 %**.
+- Demo MySQL/Zeebe sin recarga: `/tmp/vocalis-demo-58l1stz4/checks.json`; **26/26**. El broker de validación usó un directorio de datos en `/tmp` para sobrevivir al reinicio. El validador conservó temporalmente su BD UUID mediante `--keep-db` para navegador y carga; después se eliminó sólo esa BD y se retiró el broker temporal sin borrar volúmenes.
+- Firefox 156.0.1: `/tmp/vocalis-browser-stage2-20260927/checks.json` y capturas PNG. Se visitaron `/auth`, `/estudiante/dashboard`, `/estudiante/evaluacion`, `/estudiante/reporte`, `/orientador/dashboard` y `/orientador/estudiante/:studentId/reporte` en **1440×900** y **390×844**. Se comprobaron registro/login/logout de ambos roles, estado vacío y 404 de estudiante, guardado parcial, salida/reingreso, 44 respuestas, reporte propio, bitácora, filtro y reporte autorizado del orientador, ausencia de desbordamiento horizontal y etiquetas del radar. Además se interceptó la red para verificar carga, error visible, botón Reintentar y recuperación del panel orientador. Las capturas usan datos sintéticos.
+- Carga: `/tmp/vocalis-latency-stage2-30-after.json`. Máquina local AMD Ryzen 5 5600G (6 núcleos/12 hilos), 15 GiB RAM, Python 3.14.7, MySQL 8.0.46 en Docker, Zeebe 8.6.7 con límite de 2 GiB, Uvicorn normal y cliente en el mismo host. **30/30 recorridos, 1500 peticiones, cero errores, 9,398 s de duración, 159,6 peticiones/s.** p95 por operación: registro 1216,39 ms, login 706,77 ms, guardar 344,22 ms, reanudar 427,75 ms, enviar 423,45 ms, reporte 166,90 ms y estado 246,13 ms; máximo observado 1275,64 ms. Carga cerrada de 30 usuarios, sin tiempo de espera entre peticiones, timeout de 30 s, sin tests/build simultáneos. El script no mide duración de un recorrido completo, renderizado ni tiempo hasta `reporte_listo`.
+- Corridas iniciales diagnósticas: `/tmp/vocalis-latency-stage2-30.json` y `/tmp/vocalis-latency-stage2-30-diagnostic.json`. Fallaron por conflictos MySQL de registro/primer guardado a alta concurrencia. El registro ahora libera el loop durante bcrypt y reintenta conflictos acotadamente; el guardado parcial reintenta deadlocks MySQL y devuelve 503 controlado si se agotan los intentos. Se añadieron pruebas de esos casos y una prueba opcional MySQL de registros concurrentes. Una corrida final exitosa no demuestra fiabilidad bajo cargas o duraciones distintas.
 
-Al terminar se eliminaron las tres bases de demo creadas (una conservada sólo durante el diagnóstico) y los contenedores de validación; no quedaron esos servicios ejecutándose. Las siete bases temporales de pytest se eliminaron mediante sus fixtures. No se ejecutó el seed sobre la BD existente.
-
-Los archivos nuevos del repositorio son este informe, `backend/scripts/validate_mvp.py` y `backend/scripts/measure_latency.py`. Se conservaron los cambios preexistentes; no se modificaron algoritmos, modelos, migraciones, Docker, BPMN, frontend, `resumen_proyecto.md` ni `WordBPM.docx`. La creación del tag `v1.0-mvp` sigue pendiente de demo manual completa y autorización explícita del propietario.
+**Pendiente:** cinco sesiones de usabilidad con personas reales; revisión visual humana fuera del navegador headless, navegadores adicionales y despliegue completo de la imagen backend/Compose; tres corridas repetidas de carga en un entorno representativo; conciliación de ventanas extremas de recuperación BPM y asignación autorizada de cursos sin orientador cuando hay varios. Se conservan los permisos por `curso.orientador_id`. No se ejecutó seed destructivo sobre la BD de desarrollo, no se borraron volúmenes ajenos y no se creó release.

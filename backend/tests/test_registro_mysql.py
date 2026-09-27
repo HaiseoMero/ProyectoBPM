@@ -122,3 +122,16 @@ async def test_seed_is_compatible_in_disposable_mysql_only(mysql_db, monkeypatch
         assert await conn.scalar(text('SELECT COUNT(*) FROM pregunta')) == 44
         assert await conn.scalar(text('SELECT COUNT(*) FROM curso c JOIN orientador o ON c.orientador_id=o.id WHERE c.establecimiento=o.establecimiento')) == 3
         assert (await conn.execute(text('SELECT edad,fecha_nacimiento FROM estudiante'))).one() == (17, None)
+
+
+@pytest.mark.asyncio
+async def test_mysql_twelve_simultaneous_students_reuse_course(mysql_db):
+    sessions = async_sessionmaker(mysql_db, expire_on_commit=False)
+    async def register(i):
+        async with sessions() as db:
+            await create_user(db, payload(i))
+    await asyncio.gather(*(register(i) for i in range(12)))
+    async with mysql_db.connect() as conn:
+        assert await conn.scalar(text('SELECT COUNT(*) FROM curso')) == 1
+        assert await conn.scalar(text('SELECT COUNT(*) FROM estudiante')) == 12
+        assert await conn.scalar(text('SELECT COUNT(*) FROM usuario')) == 12

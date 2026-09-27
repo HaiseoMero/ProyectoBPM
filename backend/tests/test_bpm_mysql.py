@@ -110,3 +110,23 @@ async def test_mysql_migration_does_not_republish_legacy_data(mysql_db, monkeypa
         from sqlalchemy.exc import IntegrityError
         with pytest.raises(IntegrityError):
             await conn.execute(text("INSERT INTO bpm_evento (evaluacion_id,tipo,message_id,estado,intentos) VALUES (1,'completar','two','pendiente',0)"))
+
+
+@pytest.mark.asyncio
+async def test_mysql_unknown_partial_question_returns_422_before_foreign_key(mysql_db):
+    sessions = await populate(mysql_db)
+    async def dependency():
+        async with sessions() as db:
+            yield db
+    app = FastAPI()
+    app.include_router(router, prefix='/api')
+    app.dependency_overrides[get_db] = dependency
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+        response = await client.post('/api/evaluacion/respuesta', headers=auth(1),
+                                     json={'preguntaId': 999, 'valor': 3})
+    assert response.status_code == 422
+    assert response.json() == {'detail': 'La pregunta no existe'}
+    async with sessions() as db:
+        from app.models import Respuesta
+        assert await db.scalar(select(func.count()).select_from(Respuesta)) == 0
+        assert await db.scalar(select(func.count()).select_from(Evaluacion)) == 1

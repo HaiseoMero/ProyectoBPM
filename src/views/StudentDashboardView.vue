@@ -37,6 +37,11 @@
     </aside>
 
     <main class="main-content">
+      <nav class="mobile-nav" aria-label="Navegación del estudiante">
+        <button type="button" @click="currentTab = 'dashboard'">Dashboard</button>
+        <button type="button" @click="currentTab = 'history'">Bitácora</button>
+        <button type="button" @click="logout">Cerrar Sesión</button>
+      </nav>
       
       <header class="bpm-progress-card">
         <div class="bpm-header">
@@ -83,17 +88,16 @@
         <div v-else-if="!report && !hasPreviousTest && !loadError" class="action-card action-card--start">
           <div class="action-card__info">
             <span class="action-card__badge">Disponible ahora</span>
-            <h2 class="action-card__title">Tu evaluación vocacional está lista</h2>
+            <h2 class="action-card__title">El cuestionario BFI-44 está disponible</h2>
             <p class="action-card__desc">Aún no hay un reporte disponible.</p>
             <p class="action-card__desc">
-              Descubre tus fortalezas conductuales mediante el inventario científico BFI-44. 
-              Te tomará aproximadamente 8 minutos completarlo.
+              Responde 44 afirmaciones sobre cómo te describes habitualmente. Los resultados muestran dimensiones de personalidad para apoyar tu reflexión.
             </p>
             <p class="action-card__warning">
-              ⚡ 44 preguntas · sin límite de tiempo · una sola oportunidad
+              ⚡ 44 afirmaciones · sin límite de tiempo · un envío final
             </p>
             <button @click="startTest" class="btn btn--primary">
-              Iniciar Evaluación Vocacional
+              Iniciar cuestionario BFI-44
             </button>
           </div>
           <div class="action-card__visual">
@@ -104,7 +108,7 @@
         <div v-else-if="report" class="action-card action-card--report">
           <div class="action-card__info">
             <span class="action-card__badge action-card__badge--success">Reporte disponible</span>
-            <h2 class="action-card__title">Último Reporte Generado</h2>
+            <h2 class="action-card__title">Reporte generado</h2>
             <p v-if="report.careerAreas.length" class="action-card__desc">
               Áreas incluidas en tu reporte:
               <strong>{{ report.careerAreas.map(area => area.title).join(', ') }}</strong>.
@@ -131,8 +135,8 @@
         <div class="info-sidebar">
           <div class="info-mini-card">
             <div>
-              <h4 class="mini-card__title">Consejo Vocacional</h4>
-              <p class="mini-card__desc">Responde el cuestionario con total honestidad. No existen perfiles buenos ni malos, solo rutas distintas.</p>
+              <h4 class="mini-card__title">Antes de responder</h4>
+              <p class="mini-card__desc">Responde con sinceridad. No hay respuestas correctas ni perfiles mejores que otros.</p>
             </div>
           </div>
 
@@ -140,8 +144,7 @@
             <div>
               <h4 class="mini-card__title">Modelo Psicométrico</h4>
               <p class="mini-card__desc">
-                Basado en el Big Five Inventory (BFI-44), garantizando precisión y validez científica. 
-                Es uno de los modelos de personalidad más respaldados en investigación psicológica desde hace décadas.
+                El BFI-44 describe cinco dimensiones de personalidad. Sus puntajes no determinan aptitud, éxito académico ni una carrera adecuada.
               </p>
             </div>
           </div>
@@ -658,7 +661,22 @@ function logout() {
 }
 
 /* Responsivo */
+.mobile-nav { display: none; }
+.mobile-nav button, .mobile-nav a {
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--c-surface);
+  color: var(--c-primary);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 10px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 @media (max-width: 900px) {
+  .mobile-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
   .sidebar { display: none; }
   .main-content { margin-left: 0; padding: 24px; }
   .dashboard-grid { grid-template-columns: 1fr; }

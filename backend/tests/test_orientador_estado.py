@@ -17,6 +17,25 @@ async def test_student_list_preserves_raw_bpm_state_and_start_date(report_api, s
     assert response.status_code == 200
     students = {student['id']: student for student in response.json()}
     assert students[1]['bpm_estado'] == state
+    assert students[1]['hasReport'] is True
+    assert students[4]['hasReport'] is False
+    assert students[5]['hasReport'] is False
     assert students[1]['lastUpdate'] == '15 de Ene, 2026'
     assert students[4]['lastUpdate'] == 'Desconocido'  # Estudiante aún sin evaluación.
-    assert set(students[1]) == {'id', 'name', 'email', 'course', 'lastUpdate', 'bpm_estado'}
+    assert set(students[1]) == {'id', 'name', 'email', 'course', 'lastUpdate', 'bpm_estado', 'hasReport'}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('state', [None, 'registro'])
+async def test_saved_report_is_accessible_before_zeebe_finishes(report_api, state):
+    client, sessions = report_api
+    if state:
+        async with sessions() as db:
+            db.add(ProcesoBPM(evaluacion_id=1, estado_actual=state))
+            await db.commit()
+    students = (await client.get('/api/orientador/estudiantes', headers=headers(10))).json()
+    assert {row['id'] for row in students} == {1, 4, 5}
+    assert next(row for row in students if row['id'] == 1)['hasReport'] is True
+    assert next(row for row in students if row['id'] == 1)['bpm_estado'] == state
+    assert (await client.get('/api/orientador/estudiante/1/reporte', headers=headers(10))).status_code == 200
+    assert (await client.get('/api/orientador/estudiante/1/reporte', headers=headers(11))).status_code == 403

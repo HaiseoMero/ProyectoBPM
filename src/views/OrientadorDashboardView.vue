@@ -8,15 +8,9 @@
       </div>
       
       <nav class="sidebar__nav">
-        <a href="#" class="sidebar__link sidebar__link--active">
+        <router-link to="/orientador/dashboard" class="sidebar__link sidebar__link--active">
           Panel de Alumnos
-        </a>
-        <a href="#" @click.prevent="showFeatureAlert" class="sidebar__link">
-          Estadísticas Globales
-        </a>
-        <a href="#" @click.prevent="showFeatureAlert" class="sidebar__link">
-          Mi Unidad (BPM)
-        </a>
+        </router-link>
       </nav>
 
       <div class="sidebar__footer">
@@ -34,6 +28,9 @@
     </aside>
 
     <main class="main-content">
+      <nav class="mobile-nav" aria-label="Navegación del orientador">
+        <button type="button" @click="logout">Cerrar Sesión</button>
+      </nav>
       
       <section class="panel-header-zone">
         <div class="panel-title-container">
@@ -109,7 +106,7 @@
                 <th>Curso</th>
                 <th>Inicio de evaluación</th>
                 <th>Estado Flujo BPM</th>
-                <th style="text-align: center;">Acciones de Ingeniería</th>
+                <th style="text-align: center;">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -132,13 +129,10 @@
                 </td>
                 <td>
                   <div class="actions-cell-buttons">
-                    <button @click="auditAnswers(student.name)" class="btn-table btn-table--ghost">
-                      Auditar
-                    </button>
                     <button 
                       @click="viewReport(student)" 
                       class="btn-table btn-table--primary"
-                      :disabled="student.bpm_estado !== 'reporte_listo'"
+                      :disabled="!student.hasReport"
                     >
                       Ver Reporte
                     </button>
@@ -156,11 +150,6 @@
 
         <footer class="table-pagination-footer">
           <span class="pagination-info">Mostrando <strong>{{ filteredStudents.length }}</strong> de <strong>{{ studentsPool.length }}</strong> alumnos registrados</span>
-          <div class="pagination-buttons">
-            <button class="btn-page" disabled>Anterior</button>
-            <button class="btn-page btn-page--active">1</button>
-            <button class="btn-page" disabled>Siguiente</button>
-          </div>
         </footer>
         </template>
       </section>
@@ -199,7 +188,7 @@ const flujosEnCurso = computed(() => {
 })
 
 const reportesListos = computed(() => {
-  return studentsPool.value.filter(s => s.bpm_estado === 'reporte_listo').length
+  return studentsPool.value.filter(s => s.hasReport).length
 })
 
 // Cursos disponibles extraídos dinámicamente de los estudiantes
@@ -250,18 +239,10 @@ const filteredStudents = computed(() => {
   })
 })
 
-function auditAnswers(studentName) {
-  alert(`Abriendo visor de auditoría histórica para: ${studentName}.`)
-}
-
 function viewReport(student) {
-  if (student.bpm_estado === 'reporte_listo') {
+  if (student.hasReport) {
     router.push({ name: 'orientador-reporte', params: { studentId: student.id } })
   }
-}
-
-function showFeatureAlert() {
-  alert('Esta sección corresponde al panel extendido del Administrador, proyectada como una mejora futura.')
 }
 
 function logout() {
@@ -398,8 +379,6 @@ function logout() {
 /* Botones de acción */
 .actions-cell-buttons { display: flex; gap: 8px; }
 .btn-table { padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; cursor: pointer; border: none; transition: all 0.2s; font-family: 'Inter', sans-serif; }
-.btn-table--ghost { background: #FFFFFF; color: var(--c-muted); border: 1px solid var(--c-border); }
-.btn-table--ghost:hover { border-color: var(--c-primary); color: var(--c-primary); background: #EEF2FF; }
 .btn-table--primary { background: var(--c-primary); color: #FFFFFF; }
 .btn-table--primary:hover:not(:disabled) { background: #4338CA; transform: translateY(-1px); }
 .btn-table--primary:disabled { background: #F1F5F9; color: #CBD5E1; cursor: not-allowed; }
@@ -407,13 +386,25 @@ function logout() {
 /* Paginación de pie de tabla */
 .table-pagination-footer { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; background: #FFFFFF; border-top: 1px solid var(--c-border); }
 .pagination-info { font-size: 0.82rem; color: var(--c-muted); }
-.pagination-buttons { display: flex; gap: 6px; }
-.btn-page { background: #FFFFFF; border: 1px solid var(--c-border); color: var(--c-muted); padding: 6px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
-.btn-page--active { background: var(--c-primary); color: #FFFFFF; border-color: var(--c-primary); }
 
 .empty-table-msg { text-align: center; color: var(--c-muted); font-style: italic; padding: 40px !important; }
 
+.mobile-nav { display: none; }
+.mobile-nav button, .mobile-nav a {
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--c-surface);
+  color: var(--c-primary);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 10px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 @media (max-width: 900px) {
+  .mobile-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
   .sidebar { display: none; }
   .main-content { margin-left: 0; padding: 20px; }
   .metrics-grid, .filters-grid { grid-template-columns: 1fr; }

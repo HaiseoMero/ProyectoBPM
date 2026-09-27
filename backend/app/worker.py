@@ -7,10 +7,6 @@ from app.models.proceso_bpm import ProcesoBPM
 from pyzeebe import Job, ZeebeWorker, create_insecure_channel
 from app.services.bpm_service import advance_to, log_event
 
-channel = create_insecure_channel(grpc_address=settings.ZEEBE_GATEWAY)
-worker = ZeebeWorker(channel)
-
-@worker.task(task_type="calcular-ocean")
 async def calcular_ocean(evaluacion_id: str, job: Job):
     """Worker for Calcular Puntajes OCEAN."""
     eval_id = int(evaluacion_id)
@@ -27,7 +23,6 @@ async def calcular_ocean(evaluacion_id: str, job: Job):
         
     return {"status": "ocean_calculado"}
 
-@worker.task(task_type="generar-reporte")
 async def generar_reporte(evaluacion_id: str, job: Job):
     """Worker for Generar Reporte Vocacional."""
     eval_id = int(evaluacion_id)
@@ -38,7 +33,6 @@ async def generar_reporte(evaluacion_id: str, job: Job):
         await advance_to(db, proceso, "generando_reporte", job.process_instance_key)
     return {"status": "reporte_generado"}
 
-@worker.task(task_type="notificar-orientador")
 async def notificar_orientador(evaluacion_id: str, job: Job):
     """Worker for Notificar Orientador."""
     eval_id = int(evaluacion_id)
@@ -50,9 +44,18 @@ async def notificar_orientador(evaluacion_id: str, job: Job):
     return {"status": "notificado"}
 
 async def start_worker():
-    """Start the Zeebe worker."""
-    log_event("bpm_worker_starting")
-    await worker.work()
+    """Crear canal y worker dentro del loop que ejecuta la aplicación."""
+    channel = create_insecure_channel(grpc_address=settings.ZEEBE_GATEWAY)
+    try:
+        worker = ZeebeWorker(channel, max_connection_retries=-1)
+        worker.task(task_type="calcular-ocean")(calcular_ocean)
+        worker.task(task_type="generar-reporte")(generar_reporte)
+        worker.task(task_type="notificar-orientador")(notificar_orientador)
+        log_event("bpm_worker_starting")
+        await worker.work()
+    finally:
+        await channel.close()
+        log_event("bpm_worker_stopped")
 
 if __name__ == "__main__":
     asyncio.run(start_worker())

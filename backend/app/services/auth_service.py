@@ -1,4 +1,6 @@
+import asyncio
 import hmac
+import random
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -21,8 +23,8 @@ async def create_user(db: AsyncSession, request: RegisterRequest) -> None:
         if not hmac.compare_digest(code.encode(), secret.encode()):
             raise HTTPException(403, "Código de verificación incorrecto")
 
-    hashed_pwd = hash_password(request.password)
-    for attempt in range(3):
+    hashed_pwd = await asyncio.to_thread(hash_password, request.password)
+    for attempt in range(8):
         try:
             # SERIALIZABLE protege también las búsquedas sin resultados (cero orientadores).
             # Se configura antes de cualquier consulta y solo para esta transacción.
@@ -76,7 +78,8 @@ async def create_user(db: AsyncSession, request: RegisterRequest) -> None:
             await db.rollback()
             mysql_code = exc.orig.args[0] if exc.orig.args else None
             retryable = isinstance(exc, IntegrityError) or mysql_code in (1205, 1213)
-            if retryable and attempt < 2:
+            if retryable and attempt < 7:
+                await asyncio.sleep(min(0.5, 0.02 * 2 ** attempt) + random.uniform(0, 0.03))
                 continue
             if retryable:
                 raise HTTPException(409, "Conflicto durante el registro. Intenta nuevamente") from None
@@ -91,7 +94,7 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> Usua
     user = result.scalar_one_or_none()
     if not user or not user.is_active:
         return None
-    if not verify_password(password, user.hashed_password):
+    if not await asyncio.to_thread(verify_password, password, user.hashed_password):
         return None
     return user
 

@@ -3,7 +3,7 @@ import pytest_asyncio
 from unittest.mock import AsyncMock
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.database import Base, get_db
@@ -100,6 +100,39 @@ async def test_resume_updates_existing_evaluation_and_answer(api):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('missing_id', [44, 999])
+async def test_partial_answer_requires_existing_question(api, missing_id):
+    client, sessions = api
+    if missing_id == 44:
+        async with sessions() as db:
+            await db.delete(await db.get(Pregunta, missing_id))
+            await db.commit()
+    response = await client.post('/api/evaluacion/respuesta', headers=auth(3),
+                                 json={'preguntaId': missing_id, 'valor': 3})
+    assert response.status_code == 422
+    assert response.json() == {'detail': 'La pregunta no existe'}
+    async with sessions() as db:
+        assert await db.scalar(select(func.count()).select_from(Evaluacion)) == 2
+        assert await db.scalar(select(func.count()).select_from(Respuesta)) == 2
+
+
+@pytest.mark.asyncio
+async def test_partial_answer_accepts_question_id_from_database(api, monkeypatch):
+    client, sessions = api
+    monkeypatch.setattr('app.services.bpm_service.finish_cuestionario', AsyncMock())
+    async with sessions() as db:
+        question = await db.get(Pregunta, 44)
+        question.id = 80
+        await db.commit()
+    response = await client.post('/api/evaluacion/respuesta', headers=auth(1),
+                                 json={'preguntaId': 80, 'valor': 3})
+    assert response.status_code == 200
+    assert response.json()['preguntaId'] == 80
+    async with sessions() as db:
+        assert await db.scalar(select(func.count()).select_from(Respuesta).where(Respuesta.pregunta_id == 80)) == 1
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("estado", ["completada", "procesada"])
 async def test_finished_evaluation_cannot_be_edited_or_submitted_again(api, estado):
     client, sessions = api
@@ -188,17 +221,33 @@ async def test_final_ids_must_exist_in_database(api):
 
 
 @pytest.mark.asyncio
-async def test_scorer_validation_error_is_controlled(api):
+async def test_final_submission_uses_question_order_for_scoring_and_ids_for_storage(api, monkeypatch):
     client, sessions = api
+    monkeypatch.setattr("app.services.bpm_service.finish_cuestionario", AsyncMock())
     async with sessions() as db:
-        question = await db.get(Pregunta, 44)
-        question.id = 45
+        await db.execute(delete(Respuesta))
+        await db.execute(delete(Pregunta))
+        db.add_all([
+            Pregunta(id=49 + orden, texto=texto, dimension=dimension,
+                     es_invertida=invertida, orden=orden)
+            for orden, texto, dimension, invertida in PREGUNTAS
+        ])
         await db.commit()
-    payload = final_payload()
-    payload["respuestas"][-1]["preguntaId"] = 45
+
+    payload = {"respuestas": [
+        {"preguntaId": 49 + orden, "valor": 5 if orden == 1 else 3}
+        for orden in range(1, 45)
+    ]}
     response = await client.post("/api/evaluacion/enviar", headers=auth(1), json=payload)
-    assert response.status_code == 422
-    assert "fuera de rango" in response.json()["detail"]
+    assert response.status_code == 200
+    async with sessions() as db:
+        report = await db.get(ReporteVocacional, response.json()["reportId"])
+        assert report.scores_json == {"O": 0.5, "C": 0.5, "E": 0.5625, "A": 0.5, "N": 0.5}
+        saved = (await db.scalars(select(Respuesta).where(Respuesta.evaluacion_id == 1))).all()
+        assert {r.pregunta_id: r.valor for r in saved} == {
+            answer["preguntaId"]: answer["valor"] for answer in payload["respuestas"]
+        }
+        assert await db.scalar(select(func.count()).select_from(Evaluacion).where(Evaluacion.estudiante_id == 1)) == 1
 
 
 @pytest.mark.asyncio
@@ -264,3 +313,45 @@ async def test_failed_commit_rolls_back_final_answers_and_report(api, monkeypatc
         assert await db.scalar(select(func.count()).select_from(Respuesta)) == 2
     response = await client.get("/api/evaluacion/respuestas", headers=auth(1))
     assert response.json() == [{"preguntaId": 1, "valor": 2, "saved": True}]
+
+
+@pytest.mark.asyncio
+async def test_partial_answer_retries_mysql_deadlock_without_duplicate_evaluation(api, monkeypatch):
+    from sqlalchemy.exc import OperationalError
+    client, sessions = api
+    monkeypatch.setattr('app.services.bpm_service.finish_cuestionario', AsyncMock())
+    original_flush = AsyncSession.flush
+    attempts = 0
+
+    async def deadlock_once(db, *args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise OperationalError('insert', {}, Exception(1213, 'deadlock'))
+        return await original_flush(db, *args, **kwargs)
+
+    monkeypatch.setattr(AsyncSession, 'flush', deadlock_once)
+    response = await client.post('/api/evaluacion/respuesta', headers=auth(3),
+                                 json={'preguntaId': 1, 'valor': 3})
+    assert response.status_code == 200
+    assert attempts >= 2
+    async with sessions() as db:
+        assert await db.scalar(select(func.count()).select_from(Evaluacion).where(Evaluacion.estudiante_id == 3)) == 1
+        assert await db.scalar(select(func.count()).select_from(Respuesta)) == 3
+
+
+@pytest.mark.asyncio
+async def test_partial_answer_exhausted_deadlock_returns_503(api, monkeypatch):
+    from sqlalchemy.exc import OperationalError
+    client, sessions = api
+
+    async def deadlock(db, *args, **kwargs):
+        raise OperationalError('insert', {}, Exception(1213, 'deadlock'))
+
+    monkeypatch.setattr(AsyncSession, 'flush', deadlock)
+    response = await client.post('/api/evaluacion/respuesta', headers=auth(3),
+                                 json={'preguntaId': 1, 'valor': 3})
+    assert response.status_code == 503
+    assert response.json() == {'detail': 'No se pudo guardar la respuesta. Intenta nuevamente'}
+    async with sessions() as db:
+        assert await db.scalar(select(func.count()).select_from(Evaluacion)) == 2

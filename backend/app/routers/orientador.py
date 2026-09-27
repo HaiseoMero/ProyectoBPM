@@ -33,7 +33,8 @@ async def get_estudiantes(orientador: Orientador = Depends(require_orientador), 
         .options(
             selectinload(Estudiante.usuario),
             selectinload(Estudiante.curso),
-            selectinload(Estudiante.evaluaciones).selectinload(Evaluacion.proceso_bpm)
+            selectinload(Estudiante.evaluaciones).selectinload(Evaluacion.proceso_bpm),
+            selectinload(Estudiante.evaluaciones).selectinload(Evaluacion.reporte)
         )
     )
     estudiantes = result.scalars().unique().all()
@@ -50,7 +51,8 @@ async def get_estudiantes(orientador: Orientador = Depends(require_orientador), 
             email=est.usuario.email if est.usuario else "Sin email",
             course=est.curso.nombre if est.curso else "Sin curso",
             lastUpdate=format_date_spanish(dt),
-            bpm_estado=evaluacion.proceso_bpm.estado_actual if (evaluacion and evaluacion.proceso_bpm) else None
+            bpm_estado=evaluacion.proceso_bpm.estado_actual if (evaluacion and evaluacion.proceso_bpm) else None,
+            hasReport=bool(evaluacion and evaluacion.reporte)
         ))
         
     return items

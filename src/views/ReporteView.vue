@@ -31,11 +31,16 @@
     </aside>
 
     <main class="main-content">
+      <nav class="mobile-nav" aria-label="Navegación del reporte">
+        <router-link :to="isOrientador ? '/orientador/dashboard' : '/estudiante/dashboard'">Dashboard</router-link>
+        <router-link v-if="!isOrientador" to="/estudiante/dashboard#history-section">Mi Historial</router-link>
+        <button type="button" @click="logout">Cerrar Sesión</button>
+      </nav>
       <p v-if="isOrientador">Consulta del reporte de {{ displayedStudentName }}</p>
       
       <header class="bpm-progress-card">
         <div class="bpm-header">
-          <span class="bpm-badge">Reporte vocacional</span>
+          <span class="bpm-badge">Resultados BFI-44</span>
           <span class="bpm-status-text">Estado del proceso no disponible.</span>
         </div>
       </header>
@@ -43,13 +48,8 @@
       <section class="report-header-zone">
         <div class="report-title-container">
           <span class="report-eyebrow">Resultados del cuestionario</span>
-          <h1 class="report-title">{{ isOrientador ? 'Reporte Vocacional del Estudiante' : 'Tu Reporte Vocacional' }}</h1>
+          <h1 class="report-title">{{ isOrientador ? 'Resultados BFI-44 del estudiante' : 'Tus resultados BFI-44' }}</h1>
           <p class="report-sub">Reporte generado el {{ evaluatedAt }}.</p>
-        </div>
-        <div class="report-actions">
-          <button @click="simulatePDFExport" class="btn btn--ghost">
-            Exportar PDF (Mejora Futura)
-          </button>
         </div>
       </section>
 
@@ -80,7 +80,7 @@
 
           <div class="dominant-profile-badge">
             <div class="badge-info">
-              <span class="badge-label">Rasgo Dominante Detectado:</span>
+              <span class="badge-label">Dimensión con mayor puntaje:</span>
               <span class="badge-value">{{ dominantTraitLabel }}</span>
             </div>
           </div>
@@ -88,7 +88,7 @@
 
         <div class="report-text-card">
           <h3 class="card-inner-title">Interpretación de Dimensiones</h3>
-          <p class="card-inner-sub">Haz clic sobre cualquier dimensión para colapsar o expandir su análisis psicológico.</p>
+          <p class="card-inner-sub">Haz clic sobre cualquier dimensión para colapsar o expandir su descripción.</p>
 
           <div class="accordion-container">
             <div 
@@ -270,10 +270,6 @@ function toggleAccordion(index) {
   }
 }
 
-function simulatePDFExport() {
-  alert('La exportación PDF está fuera del alcance del MVP y se contempla como una mejora futura.')
-}
-
 function logout() {
   authService.logout()
 }
@@ -420,14 +416,44 @@ function logout() {
 
 /* Botones estándar del proyecto */
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 100px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.88rem; text-decoration: none; cursor: pointer; transition: all 0.2s; border: none; }
-.btn--ghost { background: #FFFFFF; color: var(--c-text); border: 1px solid var(--c-border); }
-.btn--ghost:hover { border-color: var(--c-primary); color: var(--c-primary); }
+
+.mobile-nav { display: none; }
+.mobile-nav button, .mobile-nav a {
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--c-surface);
+  color: var(--c-primary);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 10px;
+  text-decoration: none;
+  cursor: pointer;
+}
 
 @media (max-width: 900px) {
+  .mobile-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
   .sidebar { display: none; }
   .main-content { margin-left: 0; padding: 20px; }
   .report-grid, .career-cards-grid { grid-template-columns: 1fr; }
   .radar-container-box { width: 100%; max-width: 320px; margin: 0 auto 20px; }
   .report-header-zone { flex-direction: column; align-items: flex-start; gap: 16px; }
+}
+@media (max-width: 600px) {
+  .radar-container-box {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    height: auto;
+    gap: 8px;
+  }
+  .radar__svg { grid-column: 1 / -1; grid-row: 1; justify-self: center; max-width: 100%; }
+  .radar__label-box {
+    position: static;
+    transform: none;
+    box-sizing: border-box;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .radar__label-box--tl { grid-column: 1 / -1; justify-self: center; }
 }
 </style>

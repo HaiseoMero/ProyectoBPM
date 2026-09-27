@@ -225,7 +225,7 @@ async def run(args):
 
             await wait_bpm(student, 'Avance real Zeebe hasta reporte_listo')
             rows = await request('GET', '/orientador/estudiantes', ori)
-            check('Endpoint del panel orientador refleja reporte_listo', rows[0]['bpm_estado'] == 'reporte_listo', rows[0]['bpm_estado'])
+            check('Endpoint del panel orientador refleja reporte_listo', rows[0]['bpm_estado'] == 'reporte_listo' and rows[0]['hasReport'], rows[0]['bpm_estado'])
             state = await request('GET', '/evaluacion/estado', student)
             check('Fechas reales de cierre y reporte', bool(state['evaluacion_fecha'] and state['reporte_fecha']))
 
@@ -237,6 +237,11 @@ async def run(args):
                 stopped = True
                 await request('POST', '/evaluacion/enviar', recovery, {'respuestas': answers})
                 check('Reporte consultable con Zeebe caído', (await request('GET', '/evaluacion/reporte', recovery))['scores'] == report['scores'])
+                recovery_rows = await request('GET', '/orientador/estudiantes', ori)
+                recovery_row = next(row for row in recovery_rows if row['name'] == 'Recuperacion')
+                check('Panel orientador expone reporte antes de reporte_listo',
+                      recovery_row['hasReport'] and recovery_row['bpm_estado'] != 'reporte_listo',
+                      {'hasReport': recovery_row['hasReport'], 'bpm_estado': recovery_row['bpm_estado']})
                 async with engine.connect() as conn:
                     pending = (await conn.execute(text("SELECT estado, ultimo_error FROM bpm_evento WHERE evaluacion_id=2 AND tipo='completar'"))).mappings().one()
                     check('Fallo real de broker deja evento recuperable', pending['estado'] == 'pendiente', dict(pending))

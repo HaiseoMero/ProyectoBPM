@@ -34,7 +34,7 @@
           <div class="test-instructions-box">
             <span class="instructions-icon">✨</span>
             <p>
-              Vas a responder 44 afirmaciones sobre cómo eres normalmente. No hay respuestas correctas o incorrectas. Responde con tu primera impresión — no lo pienses demasiado, ni te compares con lo que crees que "deberías" ser. <strong>Solo podrás realizar este test una vez</strong>, así que tómate un momento para estar tranquilo/a antes de comenzar.
+              Vas a responder 44 afirmaciones sobre cómo eres normalmente. No hay respuestas correctas o incorrectas. Responde con tu primera impresión — no lo pienses demasiado, ni te compares con lo que crees que "deberías" ser. <strong>Podrás enviar el cuestionario completo una sola vez</strong>; tus respuestas parciales se guardan para que puedas continuar después. Los resultados describen dimensiones de personalidad y no determinan una carrera.
             </p>
           </div>
         </div>
@@ -510,9 +510,11 @@ async function nextPage() {
 .btn--ghost:disabled { color: #CBD5E1; border-color: #E2E8F0; cursor: not-allowed; }
 
 @media (max-width: 900px) {
-  .main-content { padding: 20px; }
+  .main-content { padding: 20px; box-sizing: border-box; min-width: 0; }
+  .test-card-container, .test-header-zone { min-width: 0; }
+  .likert-table-wrapper { max-width: 100%; }
   .test-header-zone { flex-direction: column; align-items: flex-start; }
-  .progress-stats-box { width: 100%; }
+  .progress-stats-box { width: 100%; box-sizing: border-box; }
   .likert-table th:not(.col-question), .option-cell { padding: 8px 4px; }
   .custom-radio { width: 28px; height: 28px; }
 }

@@ -21,6 +21,8 @@ MESSAGE_TTL_MS = 24 * 60 * 60 * 1000
 RETRY_WINDOW = timedelta(hours=23)
 STATES = ('registro', 'calculando_ocean', 'generando_reporte', 'reporte_listo')
 _client = None
+_client_channel = None
+_client_loop = None
 
 
 def log_event(event, **fields):
@@ -28,10 +30,23 @@ def log_event(event, **fields):
 
 
 def get_zeebe_client() -> ZeebeClient:
-    global _client
+    global _client, _client_channel, _client_loop
+    loop = asyncio.get_running_loop()
+    if _client is not None and _client_loop is not loop:
+        raise RuntimeError('El cliente Zeebe pertenece a otro event loop')
     if _client is None:
-        _client = ZeebeClient(create_insecure_channel(grpc_address=settings.ZEEBE_GATEWAY))
+        _client_channel = create_insecure_channel(grpc_address=settings.ZEEBE_GATEWAY)
+        _client = ZeebeClient(_client_channel)
+        _client_loop = loop
     return _client
+
+
+async def close_zeebe_client() -> None:
+    global _client, _client_channel, _client_loop
+    channel = _client_channel
+    _client, _client_channel, _client_loop = None, None, None
+    if channel is not None:
+        await channel.close()
 
 
 async def start_process(db: AsyncSession, evaluacion_id: int) -> ProcesoBPM:
