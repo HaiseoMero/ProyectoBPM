@@ -8,20 +8,20 @@
       </div>
       
       <nav class="sidebar__nav">
-        <router-link to="/estudiante/dashboard" class="sidebar__link">
+        <router-link :to="isOrientador ? '/orientador/dashboard' : '/estudiante/dashboard'" class="sidebar__link">
           Dashboard
         </router-link>
-        <router-link to="/estudiante/dashboard#history-section" class="sidebar__link">
+        <router-link v-if="!isOrientador" to="/estudiante/dashboard#history-section" class="sidebar__link">
           Mi Historial
         </router-link>
       </nav>
 
       <div class="sidebar__footer">
         <div class="user-avatar-zone">
-          <div class="avatar">JM</div>
+          <div class="avatar">{{ studentInitials }}</div>
           <div class="user-info">
-            <span class="user-name">José Miguel</span>
-            <span class="user-role">Estudiante</span>
+            <span class="user-name">{{ displayedStudentName }}</span>
+            <span class="user-role">{{ isOrientador ? 'Estudiante evaluado' : 'Mi reporte' }}</span>
           </div>
         </div>
         <a href="#" @click.prevent="logout" class="logout-btn">
@@ -31,41 +31,20 @@
     </aside>
 
     <main class="main-content">
+      <p v-if="isOrientador">Consulta del reporte de {{ displayedStudentName }}</p>
       
       <header class="bpm-progress-card">
         <div class="bpm-header">
-          <span class="bpm-badge bpm-badge--success">Flujo Finalizado Camunda 8</span>
-          <span class="bpm-status-text">Estado actual: <strong class="text-success">Instancia de Proceso Completada</strong></span>
-        </div>
-        
-        <div class="bpm-steps">
-          <div class="bpm-step bpm-step--completed">
-            <div class="bpm-step__node">✓</div>
-            <span class="bpm-step__label">Registro</span>
-            <div class="bpm-step__line"></div>
-          </div>
-          <div class="bpm-step bpm-step--completed">
-            <div class="bpm-step__node">✓</div>
-            <span class="bpm-step__label">Evaluación</span>
-            <div class="bpm-step__line"></div>
-          </div>
-          <div class="bpm-step bpm-step--completed">
-            <div class="bpm-step__node">✓</div>
-            <span class="bpm-step__label">Procesamiento</span>
-            <div class="bpm-step__line"></div>
-          </div>
-          <div class="bpm-step bpm-step--completed bpm-step--active-final">
-            <div class="bpm-step__node">✓</div>
-            <span class="bpm-step__label">Reporte Listo</span>
-          </div>
+          <span class="bpm-badge">Reporte vocacional</span>
+          <span class="bpm-status-text">Estado del proceso no disponible.</span>
         </div>
       </header>
 
       <section class="report-header-zone">
         <div class="report-title-container">
-          <span class="report-eyebrow">Análisis Psicométrico Concluido</span>
-          <h1 class="report-title">Tu Reporte Vocacional Enriquecido</h1>
-          <p class="report-sub">Resultados oficiales basados en el modelo Big Five OCEAN aplicados el {{ evaluatedAt }}.</p>
+          <span class="report-eyebrow">Resultados del cuestionario</span>
+          <h1 class="report-title">{{ isOrientador ? 'Reporte Vocacional del Estudiante' : 'Tu Reporte Vocacional' }}</h1>
+          <p class="report-sub">Reporte generado el {{ evaluatedAt }}.</p>
         </div>
         <div class="report-actions">
           <button @click="simulatePDFExport" class="btn btn--ghost">
@@ -75,33 +54,26 @@
       </section>
 
       <p v-if="loading" class="loading-text">Cargando tu reporte…</p>
+      <p v-else-if="errorMessage" role="alert">{{ errorMessage }}</p>
 
       <template v-else>
       <div class="report-grid">
         
         <div class="report-visual-card">
           <h3 class="card-inner-title">Mapeo de Perfil de Personalidad</h3>
-          <p class="card-inner-sub">Gráfico de radar interactivo que proyecta tus percentiles por dimensión.</p>
+          <p class="card-inner-sub">Gráfico de los puntajes por dimensión incluidos en el reporte.</p>
           
           <div class="radar-container-box">
-            <div class="radar__label-box radar__label-box--top">Apertura ({{ Math.round(calculatedScores[0] * 100) }}%)</div>
-            <div class="radar__label-box radar__label-box--tr">Responsabilidad ({{ Math.round(calculatedScores[1] * 100) }}%)</div>
-            <div class="radar__label-box radar__label-box--br">Extraversión ({{ Math.round(calculatedScores[2] * 100) }}%)</div>
-            <div class="radar__label-box radar__label-box--bl">Amabilidad ({{ Math.round(calculatedScores[3] * 100) }}%)</div>
-            <div class="radar__label-box radar__label-box--tl">Neuroticismo ({{ Math.round(calculatedScores[4] * 100) }}%)</div>
-            
+            <div v-for="dim in radarDimensions" :key="dim.letter"
+                 class="radar__label-box" :class="'radar__label-box--' + dim.position">
+              {{ dim.label }} ({{ dim.score == null ? '—' : dim.score + '%' }})
+            </div>
+
             <svg class="radar__svg" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
-              <polygon class="radar__grid" points="160,40 268,100 268,220 160,280 52,220 52,100" />
-              <polygon class="radar__grid" points="160,72 244,116 244,204 160,248 76,204 76,116" />
-              <polygon class="radar__grid" points="160,104 220,132 220,188 160,216 100,188 100,132" />
-              <polygon class="radar__grid" points="160,136 196,148 196,172 160,184 124,172 124,148" />
-              <line class="radar__axis" x1="160" y1="160" x2="160" y2="40" />
-              <line class="radar__axis" x1="160" y1="160" x2="268" y2="100" />
-              <line class="radar__axis" x1="160" y1="160" x2="268" y2="220" />
-              <line class="radar__axis" x1="160" y1="160" x2="160" y2="280" />
-              <line class="radar__axis" x1="160" y1="160" x2="52" y2="220" />
-              <line class="radar__axis" x1="160" y1="160" x2="52" y2="100" />
-              <polygon class="radar__data" :points="radarPoints" />
+              <polygon v-for="(points, index) in radarGridPoints" :key="index" class="radar__grid" :points="points" />
+              <line v-for="(point, index) in radarAxes" :key="index" class="radar__axis"
+                    :x1="CENTER" :y1="CENTER" :x2="point.x" :y2="point.y" />
+              <polygon v-if="hasRadarScores" class="radar__data" :points="radarPoints" />
               <circle v-for="(pt, i) in radarDots" :key="i" :cx="pt.x" :cy="pt.y" r="5" class="radar__dot" />
             </svg>
           </div>
@@ -138,7 +110,7 @@
               <div v-show="expandedIndexes.includes(index)" class="accordion-content">
                 <p class="accordion-text-desc">{{ dim.interpretation }}</p>
                 <div class="trait-impact-indicator">
-                  <strong>Impacto vocacional:</strong> {{ dim.vocationalImpact }}
+                  <strong>Alcance del puntaje:</strong> {{ dim.vocationalImpact }}
                 </div>
               </div>
             </div>
@@ -148,8 +120,8 @@
       </div>
 
       <section class="career-recommendations-zone">
-        <h2 class="section-title-secondary">Familias de Carreras y Áreas de Afinidad</h2>
-        <p class="section-sub-secondary">Sugerencias estructuradas a partir de la correlación matemática de tu perfil con la oferta académica en Chile.</p>
+        <h2 class="section-title-secondary">Áreas profesionales para explorar</h2>
+        <p class="section-sub-secondary">Referencias de las reglas actuales del prototipo; no acreditan afinidad ni aptitud profesional.</p>
 
         <div class="career-cards-grid">
           <div v-for="area in careerAreas" :key="area.title" class="career-area-card">
@@ -158,7 +130,7 @@
             </div>
             <p class="career-card-desc">{{ area.desc }}</p>
             <div class="career-list-box">
-              <h5>Carreras Recomendadas:</h5>
+              <h5>Ejemplos de carreras:</h5>
               <ul>
                 <li v-for="carrera in area.carreras" :key="carrera">{{ carrera }}</li>
               </ul>
@@ -168,10 +140,12 @@
 
         <div class="actionable-tips-card">
           <div class="tips-content">
-            <h4>Recomendación Orientativa Final</h4>
-            <p>
-              José Miguel, tus altos niveles de <strong>Apertura</strong> y <strong>Responsabilidad</strong> indican que posees un perfil ideal para enfrentar disciplinas complejas que requieran tanto abstracción lógica como orden metodológico. Te sugerimos agendar una sesión inicial con tu orientador para explorar mallas curriculares de las familias de tecnologías de la información, enfocándote en aquellas instituciones que ofrezcan metodologías de proyectos prácticos.
+            <h4>Resumen de resultados</h4>
+            <p v-if="careerAreas.length">
+              Áreas incluidas en este reporte: {{ careerAreas.map(area => area.title).join(', ') }}.
+              Los puntajes y las interpretaciones por dimensión se presentan arriba.
             </p>
+            <p v-else>Las reglas actuales no permiten sugerir un área para esta combinación. Los puntajes OCEAN siguen disponibles.</p>
           </div>
         </div>
       </section>
@@ -182,25 +156,68 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import reporteService from '../services/reporteService'
+import orientadorService from '../services/orientadorService'
 import authService from '../services/authService'
 
 const loading = ref(true)
+const errorMessage = ref('')
+const route = useRoute()
+const isOrientador = computed(() => route.meta.role === 'orientador')
+const studentName = ref('')
+const displayedStudentName = computed(() => studentName.value || 'Nombre no disponible')
+const studentInitials = computed(() => studentName.value
+  ? studentName.value.split(/\s+/).slice(0, 2).map(part => Array.from(part)[0]).join('').toUpperCase()
+  : '—')
 const evaluatedAt = ref('')
 const dimensionsData = ref([])
 const careerAreas = ref([])
 
-onMounted(async () => {
-  const report = await reporteService.getLatestReport()
-  evaluatedAt.value = report.evaluatedAt
-  dimensionsData.value = report.dimensions
-  careerAreas.value = report.careerAreas
-  loading.value = false
-})
+watch([isOrientador, () => route.params.studentId], async ([orientador, studentId], _, onCleanup) => {
+  let cancelled = false
+  onCleanup(() => { cancelled = true })
+  loading.value = true
+  errorMessage.value = ''
+  studentName.value = ''
+  evaluatedAt.value = ''
+  dimensionsData.value = []
+  careerAreas.value = []
+  try {
+    if (orientador && (!/^\d+$/.test(studentId || '') || Number(studentId) < 1)) {
+      errorMessage.value = 'Identificador de estudiante inválido.'
+      return
+    }
+    const report = orientador
+      ? await orientadorService.getStudentReport(studentId)
+      : await reporteService.getLatestReport()
+    if (cancelled) return
+    studentName.value = typeof report.studentName === 'string' ? report.studentName.trim() : ''
+    evaluatedAt.value = report.evaluatedAt
+    dimensionsData.value = report.dimensions
+    careerAreas.value = report.careerAreas
+  } catch (error) {
+    if (cancelled) return
+    const messages = {
+      401: 'Tu sesión no es válida. Vuelve a iniciar sesión.',
+      403: 'No tienes permiso para consultar el reporte de este estudiante.',
+      404: 'No hay un reporte disponible.',
+    }
+    errorMessage.value = messages[error.response?.status] || 'No se pudo cargar el reporte. Intenta nuevamente.'
+  } finally {
+    if (!cancelled) loading.value = false
+  }
+}, { immediate: true })
 
 // Lógica matemática nativa para construir el Gráfico de Radar SVG
-const AXES = [{ angle: -90 }, { angle: -18 }, { angle: 54 }, { angle: 126 }, { angle: 198 }]
+const AXES = [
+  { letter: 'O', label: 'Apertura', angle: -90, position: 'top' },
+  { letter: 'C', label: 'Responsabilidad', angle: -18, position: 'tr' },
+  { letter: 'E', label: 'Extraversión', angle: 54, position: 'br' },
+  { letter: 'A', label: 'Amabilidad', angle: 126, position: 'bl' },
+  { letter: 'N', label: 'Neuroticismo', angle: 198, position: 'tl' }
+]
 const CENTER = 160
 const MAX_R = 120
 
@@ -212,10 +229,22 @@ function polarToXY(angleDeg, r) {
   }
 }
 
-const calculatedScores = computed(() => dimensionsData.value.map((d) => d.score / 100))
-
-const radarDots = computed(() =>
-  AXES.map((ax, i) => polarToXY(ax.angle, (calculatedScores.value[i] ?? 0) * MAX_R))
+// La identidad del eje depende de la letra, nunca del orden del JSON.
+const radarDimensions = computed(() => AXES.map(axis => ({
+  ...axis,
+  score: dimensionsData.value.find(dim => dim.letter === axis.letter)?.score ?? null
+})))
+const hasRadarScores = computed(() => radarDimensions.value.every(dim => dim.score !== null))
+const radarAxes = AXES.map(axis => polarToXY(axis.angle, MAX_R))
+const radarGridPoints = [1, 0.75, 0.5, 0.25].map(scale =>
+  AXES.map(axis => {
+    const point = polarToXY(axis.angle, MAX_R * scale)
+    return `${point.x},${point.y}`
+  }).join(' ')
+)
+const radarDots = computed(() => hasRadarScores.value
+  ? radarDimensions.value.map(dim => polarToXY(dim.angle, dim.score / 100 * MAX_R))
+  : []
 )
 
 const radarPoints = computed(() =>
@@ -227,7 +256,7 @@ const radarPoints = computed(() =>
 const dominantTraitLabel = computed(() => {
   if (!dimensionsData.value.length) return ''
   const top = dimensionsData.value.reduce((max, d) => (d.score > max.score ? d : max))
-  return `Alta ${top.name}`
+  return `${top.name} (${top.score}%)`
 })
 
 // Control de secciones colapsables (Se expanden las dos primeras dimensiones dominantes por defecto)
@@ -242,7 +271,7 @@ function toggleAccordion(index) {
 }
 
 function simulatePDFExport() {
-  alert('Funcionalidad de exportación PDF mapeada como una Mejora Futura fuera del MVP, tal como define el apartado 3.8 de tu informe.')
+  alert('La exportación PDF está fuera del alcance del MVP y se contempla como una mejora futura.')
 }
 
 function logout() {

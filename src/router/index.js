@@ -44,6 +44,12 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'estudiante' }
     },
     {
+      path: '/orientador/estudiante/:studentId/reporte',
+      name: 'orientador-reporte',
+      component: ReporteView,
+      meta: { requiresAuth: true, role: 'orientador' }
+    },
+    {
       path: '/orientador/dashboard',
       name: 'orientador-dashboard',
       component: OrientadorDashboardView,

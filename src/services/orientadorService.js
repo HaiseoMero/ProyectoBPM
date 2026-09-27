@@ -8,4 +8,9 @@ async function getStudents() {
   return data
 }
 
-export default { getStudents }
+async function getStudentReport(studentId) {
+  const { data } = await http.get(`/orientador/estudiante/${encodeURIComponent(studentId)}/reporte`)
+  return data
+}
+
+export default { getStudents, getStudentReport }

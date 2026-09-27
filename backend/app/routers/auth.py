@@ -1,14 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from app.database import get_db
 from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserProfile
-from app.models import Usuario, Estudiante, Orientador
-from app.utils.security import verify_password, create_access_token, hash_password
+from app.models import Usuario
+from app.utils.security import create_access_token
 from app.utils.dependencies import get_current_user
 from app.services.auth_service import create_user, authenticate_user, get_user_name
 
-router = APIRouter(prefix="/auth", tags=["Autenticación"])
+from fastapi.routing import APIRoute
+from fastapi.exceptions import RequestValidationError
+
+
+class AuthRoute(APIRoute):
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+
+        async def without_credentials_in_errors(request):
+            try:
+                return await handler(request)
+            except RequestValidationError as exc:
+                # Pydantic incluye el input en errores: nunca devolver contraseñas/códigos.
+                detail = [{"loc": e["loc"], "msg": e["msg"], "type": e["type"]} for e in exc.errors()]
+                raise HTTPException(422, detail=detail) from None
+
+        return without_credentials_in_errors
+
+
+router = APIRouter(prefix="/auth", tags=["Autenticación"], route_class=AuthRoute)
 
 @router.post("/login", response_model=LoginResponse)
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
@@ -26,30 +44,8 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/register", response_model=RegisterResponse)
 async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    existing = await db.execute(select(Usuario).where(Usuario.email == request.email))
-    if existing.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="El email ya está registrado"
-        )
-    
-    if request.role == "estudiante" and (request.nivel is None or request.letra is None):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El nivel y letra del curso son requeridos para estudiantes"
-        )
-        
-    await create_user(
-        db=db,
-        email=request.email,
-        password=request.password,
-        role=request.role,
-        nombre=request.nombre_completo,
-        nivel=request.nivel,
-        letra=request.letra,
-        departamento=request.departamento
-    )
-    
+    await create_user(db, request)
+
     return RegisterResponse(ok=True, message="Usuario registrado exitosamente")
 
 @router.get("/me", response_model=UserProfile)

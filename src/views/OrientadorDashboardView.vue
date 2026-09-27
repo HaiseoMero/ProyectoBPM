@@ -39,7 +39,7 @@
         <div class="panel-title-container">
           <span class="panel-eyebrow">Unidad de Convivencia y Orientación Escolar</span>
           <h1 class="panel-title">Panel de Gestión y Monitoreo</h1>
-          <p class="panel-sub">Auditoría en tiempo real de los procesos psicométricos y flujos de negocio Camunda 8.</p>
+          <p class="panel-sub">Consulta de los estados registrados de los procesos psicométricos y flujos BPM.</p>
         </div>
       </section>
 
@@ -53,7 +53,7 @@
         <div class="metric-card">
           <div class="metric-card__data">
             <span class="metric-num">{{ flujosEnCurso }}</span>
-            <span class="metric-label">Flujos en Evaluación</span>
+            <span class="metric-label">Flujos en procesamiento</span>
           </div>
         </div>
         <div class="metric-card">
@@ -86,10 +86,8 @@
             <label>Estado del Flujo Camunda</label>
             <select v-model="filters.status" class="filter-select">
               <option value="">Todos los estados</option>
-              <option value="Registro">Registro</option>
-              <option value="Evaluación">Evaluación</option>
-              <option value="Procesamiento">Procesamiento</option>
-              <option value="Reporte Listo">Reporte Listo</option>
+              <option v-for="step in bpmStages" :key="step.state" :value="step.state">{{ step.label }}</option>
+              <option value="unavailable">Estado no disponible</option>
             </select>
           </div>
         </div>
@@ -97,6 +95,11 @@
 
       <section class="table-section">
         <p v-if="loadingStudents" class="loading-text">Cargando estudiantes…</p>
+        <div v-else-if="studentsError" class="loading-text" role="alert">
+          <p>{{ studentsError }}</p>
+          <button class="btn-table btn-table--primary" @click="loadStudents">Reintentar</button>
+        </div>
+        <p v-else-if="studentsPool.length === 0" class="loading-text">Todavía no tienes estudiantes asignados.</p>
         <template v-else>
         <div class="table-container">
           <table class="students-table">
@@ -104,7 +107,7 @@
               <tr>
                 <th>Estudiante</th>
                 <th>Curso</th>
-                <th>Última Actualización</th>
+                <th>Inicio de evaluación</th>
                 <th>Estado Flujo BPM</th>
                 <th style="text-align: center;">Acciones de Ingeniería</th>
               </tr>
@@ -123,8 +126,8 @@
                 <td><span class="course-tag">{{ student.course }}</span></td>
                 <td><span class="date-text">{{ student.lastUpdate }}</span></td>
                 <td>
-                  <span class="bpm-tag" :class="'bpm-tag--' + student.statusClass">
-                    {{ student.bpmStatus }}
+                  <span class="bpm-tag" :class="'bpm-tag--' + getBpmStatus(student.bpm_estado).statusClass">
+                    {{ getBpmStatus(student.bpm_estado).label }}
                   </span>
                 </td>
                 <td>
@@ -135,7 +138,7 @@
                     <button 
                       @click="viewReport(student)" 
                       class="btn-table btn-table--primary"
-                      :disabled="student.bpmStatus !== 'Reporte Listo'"
+                      :disabled="student.bpm_estado !== 'reporte_listo'"
                     >
                       Ver Reporte
                     </button>
@@ -171,6 +174,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import orientadorService from '../services/orientadorService'
 import authService from '../services/authService'
+import { bpmStages, getBpmStatus } from '../utils/bpmStatus'
 
 const router = useRouter()
 
@@ -182,6 +186,7 @@ const filters = ref({
 
 const studentsPool = ref([])
 const loadingStudents = ref(true)
+const studentsError = ref('')
 const userName = ref('Orientador')
 
 // Métricas calculadas dinámicamente desde los datos reales
@@ -189,12 +194,12 @@ const totalAlumnos = computed(() => studentsPool.value.length)
 
 const flujosEnCurso = computed(() => {
   return studentsPool.value.filter(s => 
-    s.bpmStatus === 'Evaluación' || s.bpmStatus === 'Registro'
+    s.bpm_estado === 'calculando_ocean' || s.bpm_estado === 'generando_reporte'
   ).length
 })
 
 const reportesListos = computed(() => {
-  return studentsPool.value.filter(s => s.bpmStatus === 'Reporte Listo').length
+  return studentsPool.value.filter(s => s.bpm_estado === 'reporte_listo').length
 })
 
 // Cursos disponibles extraídos dinámicamente de los estudiantes
@@ -213,16 +218,23 @@ const userInitials = computed(() => {
     .toUpperCase()
 })
 
-onMounted(async () => {
-  // Cargar perfil del orientador autenticado
-  const profile = await authService.getProfile()
-  if (profile) {
-    userName.value = profile.name
+async function loadStudents() {
+  loadingStudents.value = true
+  studentsError.value = ''
+  try {
+    studentsPool.value = await orientadorService.getStudents()
+  } catch {
+    studentsError.value = 'No se pudieron cargar los estudiantes. Intenta nuevamente.'
+  } finally {
+    loadingStudents.value = false
   }
+}
 
-  // Cargar lista de estudiantes
-  studentsPool.value = await orientadorService.getStudents()
-  loadingStudents.value = false
+onMounted(() => {
+  authService.getProfile().then(profile => {
+    if (profile) userName.value = profile.name
+  })
+  loadStudents()
 })
 
 const filteredStudents = computed(() => {
@@ -230,7 +242,9 @@ const filteredStudents = computed(() => {
     const matchesSearch = student.name.toLowerCase().includes(filters.value.search.toLowerCase()) || 
                           student.email.toLowerCase().includes(filters.value.search.toLowerCase())
     const matchesCourse = filters.value.course === '' || student.course === filters.value.course
-    const matchesStatus = filters.value.status === '' || student.bpmStatus === filters.value.status
+    const state = getBpmStatus(student.bpm_estado).state
+    const matchesStatus = filters.value.status === '' ||
+      (filters.value.status === 'unavailable' ? state === null : state === filters.value.status)
     
     return matchesSearch && matchesCourse && matchesStatus
   })
@@ -241,8 +255,8 @@ function auditAnswers(studentName) {
 }
 
 function viewReport(student) {
-  if (student.bpmStatus === 'Reporte Listo') {
-    router.push({ path: '/estudiante/reporte', query: { studentId: student.id } })
+  if (student.bpm_estado === 'reporte_listo') {
+    router.push({ name: 'orientador-reporte', params: { studentId: student.id } })
   }
 }
 

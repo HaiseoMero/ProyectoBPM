@@ -8,8 +8,8 @@ class PreguntaOut(BaseModel):
     model_config = {"from_attributes": True}
 
 class RespuestaIn(BaseModel):
-    preguntaId: int
-    valor: int = Field(ge=1, le=5)
+    preguntaId: int = Field(strict=True, gt=0)
+    valor: int = Field(strict=True, ge=1, le=5)
 
 class RespuestaOut(BaseModel):
     preguntaId: int
@@ -17,7 +17,7 @@ class RespuestaOut(BaseModel):
     saved: bool = True
 
 class SubmitEvaluationRequest(BaseModel):
-    respuestas: list[RespuestaIn]
+    respuestas: list[RespuestaIn] = Field(min_length=44, max_length=44)
 
 class SubmitEvaluationResponse(BaseModel):
     reportId: int

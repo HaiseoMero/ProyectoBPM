@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from sqlalchemy import ForeignKey, Enum, DateTime, func
+from sqlalchemy import ForeignKey, Enum, DateTime, func, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -11,6 +11,9 @@ class EstadoEvaluacion(str, enum.Enum):
 
 class Evaluacion(Base):
     __tablename__ = "evaluacion"
+    __table_args__ = (
+        UniqueConstraint("estudiante_id", name="uq_evaluacion_estudiante"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     estudiante_id: Mapped[int] = mapped_column(ForeignKey("estudiante.id"), nullable=False)

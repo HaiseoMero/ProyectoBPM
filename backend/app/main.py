@@ -11,13 +11,19 @@ from app.routers.orientador import router as orientador_router
 
 import asyncio
 from app.worker import start_worker
+from app.services.bpm_service import retry_pending_events
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
     worker_task = asyncio.create_task(start_worker())
-    yield
-    worker_task.cancel()
+    retry_task = asyncio.create_task(retry_pending_events())
+    try:
+        yield
+    finally:
+        worker_task.cancel()
+        retry_task.cancel()
+        await asyncio.gather(worker_task, retry_task, return_exceptions=True)
 
 app = FastAPI(
     title="Vócalis API",

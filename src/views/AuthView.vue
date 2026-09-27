@@ -63,6 +63,12 @@
             />
           </div>
 
+          <div v-if="!isLogin && form.role === 'estudiante'" class="input-group">
+            <label for="fecha-nacimiento">Fecha de nacimiento</label>
+            <input id="fecha-nacimiento" v-model="form.fecha_nacimiento"
+              class="register__input" type="date" required />
+          </div>
+
           <div v-if="!isLogin && form.role === 'estudiante'" class="form-row form-row--curso">
             <div class="input-group">
               <select 
@@ -92,13 +98,14 @@
             </div>
           </div>
           
-          <div v-if="!isLogin && form.role === 'estudiante'" class="input-group">
+          <div v-if="!isLogin" class="input-group">
             <input
               v-model="form.establecimiento"
               class="register__input"
               type="text"
               placeholder="Establecimiento Educacional"
-              :required="!isLogin && form.role === 'estudiante'"
+              maxlength="255"
+              required
             />
           </div>
 
@@ -110,6 +117,12 @@
               placeholder="Departamento o Unidad (Ej: Convivencia Escolar)"
               :required="!isLogin && form.role === 'orientador'"
             />
+          </div>
+
+          <div v-if="!isLogin && form.role === 'orientador'" class="input-group">
+            <input v-model="form.codigo_verificacion" class="register__input"
+              type="password" autocomplete="off" placeholder="Código privado de verificación"
+              aria-label="Código privado de verificación" required />
           </div>
 
           <div class="input-group">
@@ -172,7 +185,9 @@ const form = ref({
   nivel: '',
   letra: '',
   establecimiento: '',
-  departamento: ''
+  departamento: '',
+  fecha_nacimiento: '',
+  codigo_verificacion: ''
 })
 
 // Si se llega desde la landing con datos precargados, abrir directo en modo registro
@@ -190,11 +205,13 @@ function toggleMode() {
   errorMessage.value = ''
   successMessage.value = ''
   form.value.password = ''
+  form.value.codigo_verificacion = ''
 }
 
 // Configurar rol seleccionado dinámicamente
 function setRole(newRole) {
   form.value.role = newRole
+  form.value.codigo_verificacion = ''
 }
 
 // Procesar el envío del formulario
@@ -221,12 +238,13 @@ async function handleSubmit() {
       router.push(role === 'orientador' ? '/orientador/dashboard' : '/estudiante/dashboard')
     } else {
       await authService.register(form.value)
-      successMessage.value = 'Cuenta registrada con éxito. Iniciando sesión de forma automática.'
+      successMessage.value = 'Cuenta registrada con éxito. Ingresa tus credenciales para iniciar sesión.'
       isLogin.value = true
     }
   } catch (err) {
     errorMessage.value = err.message || 'Ocurrió un problema al procesar la solicitud. Intenta nuevamente.'
   } finally {
+    form.value.codigo_verificacion = ''
     loading.value = false
   }
 }

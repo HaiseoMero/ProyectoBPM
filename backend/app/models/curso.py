@@ -1,10 +1,11 @@
 from datetime import datetime
-from sqlalchemy import String, ForeignKey, DateTime, func
+from sqlalchemy import String, ForeignKey, DateTime, func, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 class Curso(Base):
     __tablename__ = "curso"
+    __table_args__ = (UniqueConstraint("establecimiento", "nombre", name="uq_curso_establecimiento_nombre"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     nombre: Mapped[str] = mapped_column(String(100), nullable=False)

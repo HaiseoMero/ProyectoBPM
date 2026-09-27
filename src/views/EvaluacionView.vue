@@ -14,29 +14,16 @@
       
       <header class="bpm-progress-card">
         <div class="bpm-header">
-          <span class="bpm-badge">Flujo Activo Camunda 8</span>
-          <span class="bpm-status-text">Estado actual: <strong>Rindiendo Cuestionario Psicométrico</strong></span>
+          <span class="bpm-badge">Estado BPM registrado</span>
+          <span class="bpm-status-text">Estado actual: <strong>{{ getBpmStatus(bpmState).label }}</strong></span>
         </div>
         
         <div class="bpm-steps">
-          <div class="bpm-step bpm-step--completed">
-            <div class="bpm-step__node">✓</div>
-            <span class="bpm-step__label">Registro</span>
-            <div class="bpm-step__line"></div>
-          </div>
-          <div class="bpm-step bpm-step--active">
-            <div class="bpm-step__node">2</div>
-            <span class="bpm-step__label">Evaluación</span>
-            <div class="bpm-step__line"></div>
-          </div>
-          <div class="bpm-step">
-            <div class="bpm-step__node">3</div>
-            <span class="bpm-step__label">Procesamiento</span>
-            <div class="bpm-step__line"></div>
-          </div>
-          <div class="bpm-step">
-            <div class="bpm-step__node">4</div>
-            <span class="bpm-step__label">Reporte Listo</span>
+          <div v-for="(step, index) in bpmStages" :key="step.state" class="bpm-step"
+               :class="{ 'bpm-step--completed': index < bpmStageIndex, 'bpm-step--active': index === bpmStageIndex }">
+            <div class="bpm-step__node">{{ index < bpmStageIndex ? '✓' : index + 1 }}</div>
+            <span class="bpm-step__label">{{ step.label }}</span>
+            <div v-if="index < bpmStages.length - 1" class="bpm-step__line"></div>
           </div>
         </div>
       </header>
@@ -65,7 +52,19 @@
 
       <section class="test-card-container">
         <p v-if="loadingQuestions" class="loading-text">Cargando cuestionario…</p>
+        <div v-else-if="loadError" role="alert">
+          <p>{{ loadError }}</p>
+          <button class="btn btn--primary" @click="loadQuestionnaire">Reintentar carga</button>
+        </div>
+        <div v-else-if="isCompleted" role="status">
+          <p>Esta evaluación ya está completada y no se puede editar.</p>
+          <router-link to="/estudiante/reporte" class="btn btn--primary">Ver reporte</router-link>
+        </div>
         <template v-else>
+        <div role="status">
+          <p>{{ savingCount ? 'Guardando respuestas…' : (hasUnsavedAnswers ? 'Hay respuestas sin guardar. Tus selecciones se conservan en esta página.' : 'Todas las respuestas seleccionadas están guardadas.') }}</p>
+          <button v-if="hasUnsavedAnswers && !savingCount" class="btn btn--ghost" @click="retrySaving">Reintentar guardado</button>
+        </div>
         <div class="likert-table-wrapper">
           <table class="likert-table">
             <thead>
@@ -90,6 +89,7 @@
                       :name="'q-' + q.id" 
                       :value="val" 
                       :checked="answers[q.id] === val"
+                      :disabled="submitting"
                       @change="selectAnswer(q.id, val)"
                     />
                     <span class="custom-radio">
@@ -131,22 +131,61 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import evaluacionService from '../services/evaluacionService'
-import authService from '../services/authService'
+import { bpmStages, getBpmStatus } from '../utils/bpmStatus'
 
 const router = useRouter()
 
-// El banco de ítems se carga desde el servicio (hoy mock, mañana la tabla
-// `pregunta` en MySQL vía FastAPI).
 const questions = ref([])
 const loadingQuestions = ref(true)
+const loadError = ref('')
+const bpmState = ref(null)
+const isCompleted = ref(false)
+const bpmStageIndex = computed(() => bpmStages.findIndex(step => step.state === bpmState.value))
 
-onMounted(async () => {
-  questions.value = await evaluacionService.getQuestions()
-  loadingQuestions.value = false
+function applyEstado(estado) {
+  bpmState.value = estado.bpm_estado ?? null
+  isCompleted.value = ['completada', 'procesada'].includes(estado.estado)
+}
+
+async function refreshEstado() {
+  try {
+    applyEstado(await evaluacionService.getEstado())
+  } catch {
+    bpmState.value = null
+  }
+}
+
+async function loadQuestionnaire() {
+  loadingQuestions.value = true
+  loadError.value = ''
+  try {
+    const [items, saved, estado] = await Promise.all([
+      evaluacionService.getQuestions(),
+      evaluacionService.getAnswers(),
+      evaluacionService.getEstado()
+    ])
+    questions.value = items
+    answers.value = Object.fromEntries(saved.map(answer => [answer.preguntaId, answer.valor]))
+    savedAnswers.value = { ...answers.value }
+    applyEstado(estado)
+    const firstUnanswered = items.findIndex(q => !answers.value[q.id])
+    currentPage.value = firstUnanswered < 0 ? Math.max(0, totalPages.value - 1) : Math.floor(firstUnanswered / itemsPerPage)
+  } catch {
+    bpmState.value = null
+    loadError.value = 'No se pudo recuperar el cuestionario y su progreso. Reintenta antes de responder.'
+  } finally {
+    loadingQuestions.value = false
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('beforeunload', warnUnsaved)
+  loadQuestionnaire()
 })
+onUnmounted(() => window.removeEventListener('beforeunload', warnUnsaved))
 
 // Paginación
 const currentPage = ref(0)
@@ -156,6 +195,24 @@ const submitting = ref(false)
 
 // Estado de respuestas: clave es ID de pregunta, valor es puntaje Likert (1 a 5)
 const answers = ref({})
+const savedAnswers = ref({})
+const savingCount = ref(0)
+let saveQueue = Promise.resolve()
+const hasUnsavedAnswers = computed(() => Object.entries(answers.value)
+  .some(([id, value]) => savedAnswers.value[id] !== value))
+
+function warnUnsaved(event) {
+  if (savingCount.value || hasUnsavedAnswers.value) {
+    event.preventDefault()
+    event.returnValue = ''
+  }
+}
+
+onBeforeRouteLeave(async () => {
+  if (submitting.value) return false
+  while (savingCount.value) await saveQueue
+  return !hasUnsavedAnswers.value || window.confirm('Hay respuestas sin guardar. Si sales, perderás esos cambios. ¿Salir de todos modos?')
+})
 
 const totalPages = computed(() => Math.ceil(questions.value.length / itemsPerPage))
 const isLastPage = computed(() => currentPage.value === totalPages.value - 1)
@@ -172,10 +229,39 @@ const percentProgress = computed(() =>
   questions.value.length ? Math.round((answeredCount.value / questions.value.length) * 100) : 0
 )
 
+function queueSave(qId, val) {
+  savingCount.value++
+  // Guardado individual en orden: evita crear dos evaluaciones o sobrescribir
+  // una selección reciente con una petición anterior que termine más tarde.
+  saveQueue = saveQueue.then(async () => {
+    try {
+      if (isCompleted.value) return
+      await evaluacionService.saveAnswer(qId, val)
+      savedAnswers.value[qId] = val
+      if (bpmState.value === null) await refreshEstado()
+    } catch (error) {
+      // La selección local permanece pendiente hasta un reintento exitoso.
+      delete savedAnswers.value[qId]
+      if (error.response?.status === 400) await refreshEstado()
+    } finally {
+      savingCount.value--
+    }
+  })
+}
+
 function selectAnswer(qId, val) {
+  if (loadingQuestions.value || loadError.value || isCompleted.value || submitting.value) return
+  if (answers.value[qId] === val) return
   answers.value[qId] = val
   validationMessage.value = ''
-  evaluacionService.saveAnswer(qId, val)
+  queueSave(qId, val)
+}
+
+function retrySaving() {
+  if (isCompleted.value || submitting.value || savingCount.value) return
+  for (const [id, value] of Object.entries(answers.value)) {
+    if (savedAnswers.value[id] !== value) queueSave(Number(id), value)
+  }
 }
 
 function prevPage() {
@@ -186,6 +272,7 @@ function prevPage() {
 }
 
 async function nextPage() {
+  if (loadingQuestions.value || loadError.value || isCompleted.value || submitting.value) return
   // Validar si todas las preguntas del bloque actual fueron respondidas
   const unansweredQuestions = paginatedQuestions.value.filter(q => !answers.value[q.id])
 
@@ -200,21 +287,31 @@ async function nextPage() {
     return
   }
 
-  // Última página: enviamos el cuestionario completo y el motor BPM procesa
-  // el cálculo de las dimensiones OCEAN. El reporte generado se muestra
-  // directamente, sin diálogos bloqueantes.
+  if (questions.value.some(q => !answers.value[q.id])) {
+    validationMessage.value = 'Aún quedan preguntas sin responder.'
+    return
+  }
+
   submitting.value = true
   try {
+    await saveQueue
+    if (isCompleted.value) return
+    if (hasUnsavedAnswers.value) {
+      validationMessage.value = 'Reintenta el guardado de las respuestas pendientes antes de finalizar.'
+      return
+    }
     await evaluacionService.submitEvaluation(answers.value)
-    router.push('/estudiante/reporte')
+    isCompleted.value = true
+    submitting.value = false
+    await router.push('/estudiante/reporte')
+  } catch {
+    validationMessage.value = 'No se pudo finalizar la evaluación. Tus respuestas se conservan; puedes reintentar.'
+    await refreshEstado()
   } finally {
     submitting.value = false
   }
 }
 
-function logout() {
-  authService.logout()
-}
 </script>
 
 <style scoped>

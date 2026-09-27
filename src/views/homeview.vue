@@ -66,16 +66,10 @@
         <div class="radar__label radar__label--bl">Amabilidad</div>
         <div class="radar__label radar__label--tl">Neuroticismo</div>
         <svg class="radar__svg" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
-          <polygon class="radar__grid" points="160,40 268,100 268,220 160,280 52,220 52,100" />
-          <polygon class="radar__grid" points="160,72 244,116 244,204 160,248 76,204 76,116" />
-          <polygon class="radar__grid" points="160,104 220,132 220,188 160,216 100,188 100,132" />
-          <polygon class="radar__grid" points="160,136 196,148 196,172 160,184 124,172 124,148" />
-          <line class="radar__axis" x1="160" y1="160" x2="160" y2="40" />
-          <line class="radar__axis" x1="160" y1="160" x2="268" y2="100" />
-          <line class="radar__axis" x1="160" y1="160" x2="268" y2="220" />
-          <line class="radar__axis" x1="160" y1="160" x2="160" y2="280" />
-          <line class="radar__axis" x1="160" y1="160" x2="52" y2="220" />
-          <line class="radar__axis" x1="160" y1="160" x2="52" y2="100" />
+          <polygon v-for="(points, index) in radarGridPoints" :key="index"
+                   class="radar__grid" :points="points" />
+          <line v-for="(point, index) in radarAxes" :key="index" class="radar__axis"
+                :x1="CENTER" :y1="CENTER" :x2="point.x" :y2="point.y" />
           <polygon class="radar__data" ref="radarData" :points="radarPoints" />
           <circle
             v-for="(pt, i) in radarDots"
@@ -190,6 +184,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 
+defineOptions({ name: 'HomeView' })
+
 // ── Radar animation ──────────────────────────────────────────────────────────
 const AXES = [
   { angle: -90 },   // top (Apertura)
@@ -215,6 +211,14 @@ function polarToXY(angleDeg, r) {
     y: CENTER + r * Math.sin(rad),
   }
 }
+
+const radarAxes = AXES.map(axis => polarToXY(axis.angle, MAX_R))
+const radarGridPoints = [1, 0.75, 0.5, 0.25].map(scale =>
+  AXES.map(axis => {
+    const point = polarToXY(axis.angle, MAX_R * scale)
+    return `${point.x},${point.y}`
+  }).join(' ')
+)
 
 function tick() {
   phaseTick++

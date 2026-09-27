@@ -24,7 +24,7 @@
 
       <div class="sidebar__footer">
         <div class="user-avatar-zone">
-          <div class="avatar">JM</div>
+          <div class="avatar">{{ studentInitials }}</div>
           <div class="user-info">
             <span class="user-name">{{ studentName || 'Estudiante' }}</span>
             <span class="user-role">Estudiante</span>
@@ -40,7 +40,7 @@
       
       <header class="bpm-progress-card">
         <div class="bpm-header">
-          <span class="bpm-badge">Flujo Activo Camunda 8</span>
+          <span class="bpm-badge">Estado BPM registrado</span>
           <span class="bpm-status-text">Estado actual: <strong>{{ currentBpmStageText }}</strong></span>
         </div>
         
@@ -58,7 +58,7 @@
               <span v-if="index < currentBpmStageIndex">✓</span>
               <span v-else>{{ index + 1 }}</span>
             </div>
-            <span class="bpm-step__label">{{ step }}</span>
+            <span class="bpm-step__label">{{ step.label }}</span>
             <div v-if="index < bpmStages.length - 1" class="bpm-step__line"></div>
           </div>
         </div>
@@ -67,15 +67,24 @@
       <section class="welcome-section">
         <h1 class="welcome-title">¡Hola de nuevo, {{ studentName || 'Estudiante' }}!</h1>
         <p class="welcome-sub">Estudiante · Plataforma Vócalis</p>
-        <p v-if="orientadorName" class="welcome-orientador">Tu orientador/a: <strong>Prof. {{ orientadorName }}</strong></p>
+        <p v-if="orientadorName" class="welcome-orientador">Tu orientador/a: <strong>{{ orientadorName }}</strong></p>
       </section>
+
+      <p v-if="!loading && loadError" class="action-card__desc" role="alert">{{ loadError }}</p>
 
       <div v-show="currentTab === 'dashboard'" class="dashboard-grid">
         
-        <div v-if="!hasPreviousTest" class="action-card action-card--start">
+        <div v-if="loading" class="action-card">
+          <div class="action-card__info">
+            <p class="action-card__desc" role="status">Cargando tus datos…</p>
+          </div>
+        </div>
+
+        <div v-else-if="!report && !hasPreviousTest && !loadError" class="action-card action-card--start">
           <div class="action-card__info">
             <span class="action-card__badge">Disponible ahora</span>
             <h2 class="action-card__title">Tu evaluación vocacional está lista</h2>
+            <p class="action-card__desc">Aún no hay un reporte disponible.</p>
             <p class="action-card__desc">
               Descubre tus fortalezas conductuales mediante el inventario científico BFI-44. 
               Te tomará aproximadamente 8 minutos completarlo.
@@ -92,21 +101,30 @@
           </div>
         </div>
 
-        <div v-else class="action-card action-card--report">
+        <div v-else-if="report" class="action-card action-card--report">
           <div class="action-card__info">
-            <span class="action-card__badge action-card__badge--success">Evaluación Completada</span>
+            <span class="action-card__badge action-card__badge--success">Reporte disponible</span>
             <h2 class="action-card__title">Último Reporte Generado</h2>
-            <p class="action-card__desc">
-              Tu perfil dominante actual muestra una alta afinidad con el área de 
-              <strong>Tecnología e Ingeniería</strong> debido a tus altos índices de Apertura y Responsabilidad.
+            <p v-if="report.careerAreas.length" class="action-card__desc">
+              Áreas incluidas en tu reporte:
+              <strong>{{ report.careerAreas.map(area => area.title).join(', ') }}</strong>.
             </p>
+            <p v-else class="action-card__desc">El reporte no incluye áreas profesionales.</p>
             <div class="report-quick-stats">
-              <div class="q-stat"><span>O</span> Apertura: 85%</div>
-              <div class="q-stat"><span>C</span> Responsabilidad: 72%</div>
+              <div v-for="dimension in report.dimensions" :key="dimension.letter" class="q-stat">
+                <span>{{ dimension.letter }}</span> {{ dimension.name }}: {{ dimension.score }}%
+              </div>
             </div>
             <button @click="viewLatestReport" class="btn btn--primary">
               Ver Reporte Completo
             </button>
+          </div>
+        </div>
+
+        <div v-else-if="!loadError" class="action-card action-card--report">
+          <div class="action-card__info">
+            <h2 class="action-card__title">Reporte no disponible</h2>
+            <p class="action-card__desc">Tu cuestionario está completado, pero aún no hay un reporte disponible.</p>
           </div>
         </div>
 
@@ -166,20 +184,32 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import authService from '../services/authService'
 import evaluacionService from '../services/evaluacionService'
+import reporteService from '../services/reporteService'
+import { bpmStages, getBpmStatus } from '../utils/bpmStatus'
 
 const router = useRouter()
+const route = useRoute()
 
 // Pestaña actual de la interfaz
 const currentTab = ref('dashboard')
+watch(() => route.hash, hash => {
+  currentTab.value = hash === '#history-section' ? 'history' : 'dashboard'
+}, { immediate: true })
 
 // Estado de la evaluación desde backend
 const hasPreviousTest = ref(false)
+const bpmState = ref(null)
 const orientadorName = ref(null)
 const studentName = ref('')
+const studentInitials = computed(() => studentName.value.split(/\s+/).filter(Boolean)
+  .slice(0, 2).map(part => Array.from(part)[0]).join('').toUpperCase() || '—')
+const report = ref(null)
+const loading = ref(true)
+const loadError = ref('')
 const timeline = ref({
   registro: null,
   evaluacion: null,
@@ -187,24 +217,34 @@ const timeline = ref({
 })
 
 onMounted(async () => {
-  // Cargar datos de perfil básico
-  const profile = await authService.getProfile()
-  if (profile) {
-    studentName.value = profile.name
+  const [profileResult, estadoResult, reportResult] = await Promise.allSettled([
+    authService.getProfile(),
+    evaluacionService.getEstado(),
+    reporteService.getLatestReport()
+  ])
+  if (profileResult.status === 'fulfilled') {
+    studentName.value = profileResult.value?.name?.trim() || ''
   }
-  
-  // Cargar estado de la evaluación y datos del estudiante
-  try {
-    const estado = await evaluacionService.getEstado()
-    hasPreviousTest.value = estado.tiene_evaluacion && estado.estado === 'completada'
+
+  if (estadoResult.status === 'fulfilled') {
+    const estado = estadoResult.value
+    bpmState.value = estado.bpm_estado ?? null
+    hasPreviousTest.value = estado.tiene_evaluacion && ['completada', 'procesada'].includes(estado.estado)
     orientadorName.value = estado.orientador_nombre
     
     timeline.value.registro = estado.registro_fecha
     timeline.value.evaluacion = estado.evaluacion_fecha
     timeline.value.reporte = estado.reporte_fecha
-  } catch (err) {
-    console.error("Error cargando estado:", err)
+  } else {
+    loadError.value = 'No se pudo cargar el estado de tu evaluación. Intenta recargar la página.'
   }
+
+  if (reportResult.status === 'fulfilled') {
+    report.value = reportResult.value
+  } else if (reportResult.reason.response?.status !== 404) {
+    loadError.value = [loadError.value, 'No se pudo consultar tu reporte. Intenta recargar la página.'].filter(Boolean).join(' ')
+  }
+  loading.value = false
 })
 
 function formatDate(dateString) {
@@ -216,16 +256,12 @@ function formatDate(dateString) {
   })
 }
 
-// Configuración de las etapas del proceso Camunda 8 BPMN
-const bpmStages = ['Registro', 'Evaluación', 'Procesamiento', 'Reporte Listo']
-
-// Índice actual del progreso BPM basado en el estado
 const currentBpmStageIndex = computed(() => {
-  return hasPreviousTest.value ? 3 : 1
+  return bpmStages.findIndex(step => step.state === bpmState.value)
 })
 
 const currentBpmStageText = computed(() => {
-  return bpmStages[currentBpmStageIndex.value]
+  return getBpmStatus(bpmState.value).label
 })
 
 // Redirección hacia próximos mockups
@@ -511,6 +547,7 @@ function logout() {
 
 .report-quick-stats {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 24px;
 }

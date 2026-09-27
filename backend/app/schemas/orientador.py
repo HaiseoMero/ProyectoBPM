@@ -5,6 +5,5 @@ class EstudianteListItem(BaseModel):
     name: str
     email: str
     course: str
-    lastUpdate: str
-    bpmStatus: str
-    statusClass: str  # CSS class: 'success', 'warning', 'info', 'danger'
+    lastUpdate: str  # Fecha de inicio de la evaluación; nombre conservado para el consumidor actual.
+    bpm_estado: str | None = None

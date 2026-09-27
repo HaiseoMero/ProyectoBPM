@@ -16,14 +16,14 @@ async function login(credentials) {
     return { role: data.role, name: data.name }
   } catch (error) {
     if (error.response?.status === 401) {
-      const err = new Error('Credenciales no reconocidas. Revisa tu correo o contraseña.')
+      const err = new Error('Credenciales no reconocidas. Revisa tu correo o contraseña.', { cause: error })
       err.code = 'INVALID_CREDENTIALS'
       throw err
     }
     if (error.response?.status === 409) {
-      throw new Error(error.response.data?.detail || 'El email ya está registrado.')
+      throw new Error(error.response.data?.detail || 'El email ya está registrado.', { cause: error })
     }
-    throw new Error(error.response?.data?.detail || 'Error de conexión con el servidor.')
+    throw new Error(error.response?.data?.detail || 'Error de conexión con el servidor.', { cause: error })
   }
 }
 
@@ -37,17 +37,35 @@ async function register(payload) {
       password: payload.password,
       nombre_completo: payload.name,
       role: payload.role,
-      nivel: payload.nivel || undefined,
-      letra: payload.letra || undefined,
-      departamento: payload.departamento || undefined
+      establecimiento: payload.establecimiento,
+      ...(payload.role === 'estudiante' ? {
+        nivel: payload.nivel,
+        letra: payload.letra,
+        fecha_nacimiento: payload.fecha_nacimiento
+      } : {
+        departamento: payload.departamento || undefined,
+        codigo_verificacion: payload.codigo_verificacion
+      })
     }
     const { data } = await http.post('/auth/register', body)
     return data
   } catch (error) {
     if (error.response?.status === 409) {
-      throw new Error('Este correo ya está registrado. Intenta iniciar sesión.')
+      // eslint-disable-next-line preserve-caught-error -- Axios contiene las credenciales del registro.
+      throw new Error(error.response.data?.detail || 'Conflicto durante el registro. Intenta nuevamente.')
     }
-    throw new Error(error.response?.data?.detail || 'Error al registrar. Intenta nuevamente.')
+    const detail = error.response?.data?.detail
+    const fields = { email: 'Correo', password: 'Contraseña', nivel: 'Nivel', letra: 'Letra',
+      establecimiento: 'Establecimiento', fecha_nacimiento: 'Fecha de nacimiento',
+      nombre_completo: 'Nombre', codigo_verificacion: 'Código de verificación' }
+    const message = Array.isArray(detail)
+      ? detail.map(item => item.type === 'value_error'
+        ? item.msg.replace(/^Value error, /, '')
+        : `Revisa el campo ${fields[item.loc?.at(-1)] || 'del formulario'}.`).join(' ')
+      : detail
+    // No conservar el error Axios: su configuración contiene el código y la contraseña.
+    // eslint-disable-next-line preserve-caught-error -- No propagar el código privado en cause.
+    throw new Error(message || 'Error al registrar. Intenta nuevamente.')
   }
 }
 

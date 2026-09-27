@@ -14,6 +14,7 @@ class CareerArea(BaseModel):
     carreras: list[str]
 
 class ReporteOut(BaseModel):
+    studentName: str | None = None
     evaluatedAt: str
     scores: dict[str, float]
     dimensions: list[DimensionScore]

@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import SecretStr
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "mysql+aiomysql://vocalis:vocalis_pass@localhost:3306/vocalis_db"
@@ -6,6 +7,7 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "dev-secret-change-in-production"
     JWT_EXPIRATION_HOURS: int = 24
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    ORIENTADOR_REGISTRATION_CODE: SecretStr | None = None
     
     @property
     def cors_origins_list(self) -> list[str]:

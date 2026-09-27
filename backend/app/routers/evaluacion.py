@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.database import get_db
 from app.schemas.evaluacion import PreguntaOut, RespuestaIn, RespuestaOut, SubmitEvaluationRequest, SubmitEvaluationResponse, EstadoEvaluacion
 from app.models import Pregunta, Evaluacion, Respuesta, ReporteVocacional, Estudiante
 from app.utils.dependencies import require_estudiante
 from app.services.ocean_scorer import calculate_ocean_scores, get_dominant_dimensions
-from app.services.bpm_service import start_process, advance_to
+from app.services.bpm_service import start_process, queue_cuestionario
+from app.services import bpm_service
 
 router = APIRouter(prefix="/evaluacion", tags=["Evaluación BFI-44"])
 
@@ -17,13 +18,25 @@ async def get_preguntas(db: AsyncSession = Depends(get_db)):
     # Map 'texto' to 'text'
     return [PreguntaOut(id=p.id, text=p.texto, dimension=p.dimension) for p in preguntas]
 
+@router.get("/respuestas", response_model=list[RespuestaOut])
+async def get_respuestas(estudiante: Estudiante = Depends(require_estudiante), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Respuesta)
+        .join(Evaluacion, Respuesta.evaluacion_id == Evaluacion.id)
+        .where(Evaluacion.estudiante_id == estudiante.id)
+        .order_by(Respuesta.pregunta_id)
+    )
+    return [RespuestaOut(preguntaId=r.pregunta_id, valor=r.valor) for r in result.scalars().all()]
+
 @router.post("/respuesta", response_model=RespuestaOut)
 async def save_respuesta(respuesta: RespuestaIn, estudiante: Estudiante = Depends(require_estudiante), db: AsyncSession = Depends(get_db)):
+    # Serializar también la creación inicial cuando aún no existe evaluación.
+    await db.execute(select(Estudiante.id).where(Estudiante.id == estudiante.id).with_for_update())
     # Check if evaluacion exists
-    result = await db.execute(select(Evaluacion).where(Evaluacion.estudiante_id == estudiante.id))
+    result = await db.execute(select(Evaluacion).where(Evaluacion.estudiante_id == estudiante.id).with_for_update())
     evaluacion = result.scalar_one_or_none()
     
-    if evaluacion and evaluacion.estado == "completada":
+    if evaluacion and evaluacion.estado in ("completada", "procesada"):
         raise HTTPException(status_code=400, detail="El estudiante ya completó una evaluación")
         
     if not evaluacion:
@@ -46,32 +59,43 @@ async def save_respuesta(respuesta: RespuestaIn, estudiante: Estudiante = Depend
         new_resp = Respuesta(evaluacion_id=evaluacion.id, pregunta_id=respuesta.preguntaId, valor=respuesta.valor)
         db.add(new_resp)
         
+    eval_id = evaluacion.id
     await db.commit()
+    await bpm_service.finish_cuestionario(db, eval_id)
     return RespuestaOut(preguntaId=respuesta.preguntaId, valor=respuesta.valor, saved=True)
 
 @router.post("/enviar", response_model=SubmitEvaluationResponse)
 async def submit_evaluation(request: SubmitEvaluationRequest, estudiante: Estudiante = Depends(require_estudiante), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Evaluacion).where(Evaluacion.estudiante_id == estudiante.id))
+    result = await db.execute(select(Evaluacion).where(Evaluacion.estudiante_id == estudiante.id).with_for_update())
     evaluacion = result.scalar_one_or_none()
     
     if not evaluacion:
         raise HTTPException(status_code=400, detail="No hay evaluación en progreso")
-    if evaluacion.estado == "completada":
+    if evaluacion.estado in ("completada", "procesada"):
         raise HTTPException(status_code=400, detail="Evaluación ya completada")
         
-    if len(request.respuestas) != 44:
-        raise HTTPException(status_code=400, detail="Se requieren exactamente 44 respuestas")
-        
-    # Get questions
-    preg_result = await db.execute(select(Pregunta))
-    preguntas = preg_result.scalars().all()
-    preg_map = {p.id: p for p in preguntas}
-    
-    answers = {}
-    for r in request.respuestas:
-        answers[r.preguntaId] = r.valor
-        
-    scores = calculate_ocean_scores(answers)
+    answers = {r.preguntaId: r.valor for r in request.respuestas}
+    if len(answers) != len(request.respuestas):
+        raise HTTPException(status_code=422, detail="No se permiten preguntas duplicadas")
+
+    preg_result = await db.execute(select(Pregunta.id))
+    if set(answers) != set(preg_result.scalars().all()):
+        raise HTTPException(status_code=422, detail="Debes responder exactamente las preguntas existentes del BFI-44")
+
+    try:
+        scores = calculate_ocean_scores(answers)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # El envío final validado es la fuente de verdad. Persistir ese mismo
+    # conjunto y su reporte en una única transacción, sustituyendo el borrador.
+    saved_result = await db.execute(select(Respuesta).where(Respuesta.evaluacion_id == evaluacion.id))
+    saved = {r.pregunta_id: r for r in saved_result.scalars().all()}
+    for pregunta_id, valor in answers.items():
+        if pregunta_id in saved:
+            saved[pregunta_id].valor = valor
+        else:
+            db.add(Respuesta(evaluacion_id=evaluacion.id, pregunta_id=pregunta_id, valor=valor))
     
     # Create Reporte
     reporte = ReporteVocacional(
@@ -80,15 +104,16 @@ async def submit_evaluation(request: SubmitEvaluationRequest, estudiante: Estudi
     )
     db.add(reporte)
     evaluacion.estado = "completada"
+    evaluacion.completed_at = func.now()
     
-    # Update BPM Process
-    from app.services.bpm_service import finish_cuestionario
-    await finish_cuestionario(db, evaluacion.id)
-        
+    # Reporte y evento pendiente se confirman juntos. Ningún RPC precede al commit.
+    await queue_cuestionario(db, evaluacion.id)
+    await db.flush()
+    report_id, eval_id = reporte.id, evaluacion.id
     await db.commit()
-    await db.refresh(reporte)
-    
-    return SubmitEvaluationResponse(reportId=reporte.id, status="success")
+    await bpm_service.finish_cuestionario(db, eval_id)
+
+    return SubmitEvaluationResponse(reportId=report_id, status="success")
 
 @router.get("/estado", response_model=EstadoEvaluacion)
 async def get_estado(estudiante: Estudiante = Depends(require_estudiante), db: AsyncSession = Depends(get_db)):

@@ -5,6 +5,8 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime, date
 from app.database import get_db
 from app.schemas.orientador import EstudianteListItem
+from app.schemas.reporte import ReporteOut
+from app.routers.reporte import build_reporte_out
 from app.models import Orientador, Estudiante, Evaluacion, ProcesoBPM, Curso, Usuario
 from app.utils.dependencies import require_orientador
 
@@ -40,36 +42,20 @@ async def get_estudiantes(orientador: Orientador = Depends(require_orientador), 
     for est in estudiantes:
         evaluacion = est.evaluaciones[-1] if est.evaluaciones else None
         
-        bpm_status_raw = evaluacion.proceso_bpm.estado_actual if (evaluacion and evaluacion.proceso_bpm) else "registro"
         dt = evaluacion.created_at if evaluacion else None
-        
-        status_map = {
-            'reporte_listo': 'success',
-            'evaluacion': 'warning',
-            'registro': 'info',
-            'procesamiento': 'danger'
-        }
-        
-        name_map = {
-            'reporte_listo': 'Reporte Listo',
-            'evaluacion': 'Evaluación',
-            'registro': 'Registro',
-            'procesamiento': 'Procesamiento'
-        }
-        
+
         items.append(EstudianteListItem(
             id=est.id,
             name=est.nombre_completo,
             email=est.usuario.email if est.usuario else "Sin email",
             course=est.curso.nombre if est.curso else "Sin curso",
             lastUpdate=format_date_spanish(dt),
-            bpmStatus=name_map.get(bpm_status_raw, "Registro"),
-            statusClass=status_map.get(bpm_status_raw, "info")
+            bpm_estado=evaluacion.proceso_bpm.estado_actual if (evaluacion and evaluacion.proceso_bpm) else None
         ))
         
     return items
 
-@router.get("/estudiante/{estudiante_id}/reporte")
+@router.get("/estudiante/{estudiante_id}/reporte", response_model=ReporteOut)
 async def get_estudiante_reporte(estudiante_id: int, orientador: Orientador = Depends(require_orientador), db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Estudiante).join(Curso).where(Estudiante.id == estudiante_id, Curso.orientador_id == orientador.id)
@@ -83,4 +69,5 @@ async def get_estudiante_reporte(estudiante_id: int, orientador: Orientador = De
     if not evaluacion or not evaluacion.reporte:
         raise HTTPException(status_code=404, detail="No hay reporte para este estudiante")
         
-    return evaluacion.reporte[0] if isinstance(evaluacion.reporte, list) else evaluacion.reporte
+    reporte = evaluacion.reporte[0] if isinstance(evaluacion.reporte, list) else evaluacion.reporte
+    return build_reporte_out(reporte, est.nombre_completo)

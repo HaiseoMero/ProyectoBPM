@@ -66,7 +66,7 @@ async def seed_data():
         db.add(user_ori)
         await db.flush()
         
-        orientador = Orientador(usuario_id=user_ori.id, nombre_completo='Prof. María González', departamento='Orientación')
+        orientador = Orientador(usuario_id=user_ori.id, nombre_completo='Prof. María González', departamento='Orientación', establecimiento='Liceo Demo Vócalis')
         db.add(orientador)
         await db.flush()
         

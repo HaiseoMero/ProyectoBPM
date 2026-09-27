@@ -16,6 +16,11 @@ async function saveAnswer(preguntaId, valor) {
   return data
 }
 
+async function getAnswers() {
+  const { data } = await http.get('/evaluacion/respuestas')
+  return data
+}
+
 /**
  * Envía el cuestionario completo y dispara el proceso BPM en Camunda.
  */
@@ -35,4 +40,4 @@ async function getEstado() {
   return data
 }
 
-export default { getQuestions, saveAnswer, submitEvaluation, getEstado }
+export default { getQuestions, getAnswers, saveAnswer, submitEvaluation, getEstado }
