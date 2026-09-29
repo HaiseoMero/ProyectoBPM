@@ -1,6 +1,6 @@
 # Resumen del Proyecto — Vócalis (ProyectoBPM)
 
-> **Propósito de este documento:** Servir como contexto completo para una herramienta de IA (Codex u otra) que retome el desarrollo del proyecto. Estado contrastado con el código al **27 de septiembre de 2026**. Las cifras de pruebas y cobertura proceden de la ejecución completa del 27/09/2026 con MySQL aislado. Se distinguen funcionalidades implementadas, límites verificados y pendientes. El plan final es una referencia histórica, no una descripción del estado actual.
+> **Propósito de este documento:** Servir como contexto completo para una herramienta de IA (Codex u otra) que retome el desarrollo del proyecto. Estado contrastado con el código al **27 de septiembre de 2026**. Las 199 pruebas proceden de la ejecución completa del 27/09/2026 con MySQL aislado; la cifra de cobertura citada más abajo corresponde a una medición anterior a la conversión del seed. Se distinguen funcionalidades implementadas, límites verificados y pendientes. El plan final es una referencia histórica, no una descripción del estado actual.
 
 ---
 
@@ -142,7 +142,7 @@
 | **Estado de evaluación** | Implementado | `GET /api/evaluacion/estado`: estado de evaluación, `bpm_estado`, fechas y orientador. `completed_at = func.now()` se asigna antes del commit al completar; no se rellenaron fechas históricas. Edición y reenvío de `completada`/`procesada` se rechazan. |
 | **Panel del orientador** | Implementado y probado en API y Firefox | Filtrado por cursos y reporte autorizado. Expone `bpm_estado` original; retirados `bpmStatus/statusClass` sin consumidores. `lastUpdate` se conserva para el frontend: contiene inicio de evaluación y la columna dice «Inicio de evaluación». Ocho tests prueban estados, contrato y reporte disponible antes de `reporte_listo`. |
 | **Integración Zeebe** | Implementada y probada sin recarga | `ZEEBE_GATEWAY`, `process_instance_key` persistida, outbox durable, reintentos y logging JSON; workers idempotentes. E2E real aprobado sin `--reload`; worker y cliente gRPC se crean en el loop activo, se cierran al apagar y los fallos de tareas quedan observables (§Testing). Workers no calculan OCEAN ni notifican externamente. |
-| **Seed de datos** | Implementado, destructivo | 44 preguntas coherentes con dimensiones/inversiones del scorer, un orientador, tres cursos y un estudiante demo. El orientador comparte establecimiento con sus cursos; el alumno demo conserva edad histórica y fecha NULL. Compatible con el nuevo esquema, probado solo en MySQL temporal. Borra y recrea tablas del modelo; no es una migración incremental. |
+| **Seed de preguntas** | Implementado, no destructivo | `python -m app.seed` inserta sólo las 44 preguntas en una tabla vacía; una segunda ejecución no duplica filas y una tabla parcial se rechaza sin modificarla. No crea cuentas ni cursos. Probado en MySQL UUID aislado; el texto académico de los ítems no se cambió. |
 
 ### Frontend — Vue.js 3
 
@@ -212,7 +212,7 @@ Null, ausente o desconocido → **Estado no disponible**, sin progreso activo in
 | `test_evaluacion_respuestas.py` | 35 casos: autorización, recuperación, bloqueo, payloads inválidos y coherencia del envío definitivo. |
 | `test_auth_registro.py` | 37 casos: registro por rol/código, fecha/edad, login e inactivos, cursos/asignación, permisos y rollback. |
 | `test_registro_migration.py` | 2 tests de datos antiguos, unicidad y duplicados. |
-| `test_registro_mysql.py` | 5 opcionales MySQL: concurrencia, asociación, migración histórica y seed en BD aislada. |
+| `test_registro_mysql.py` | 6 opcionales MySQL: concurrencia, asociación, migración histórica y seed seguro en BD aislada. |
 | `test_bpm_delivery.py` | 15 pruebas de commit/publicación, reintentos, UUID estable, solicitudes repetidas, inicio incierto y avance. Gateway inaccesible real; broker simulado para aceptación. |
 | `test_bpm_mysql.py` | 4 opcionales MySQL: dos envíos, despachadores competidores y migración outbox; Zeebe simulado aquí. |
 | `test_reportes.py` | 53 casos de permisos, JWT inválidos/inactivos, reportes inexistentes, contrato de tres endpoints y neutralidad histórica. |
@@ -222,11 +222,11 @@ Null, ausente o desconocido → **Estado no disponible**, sin progreso activo in
 | `tests/frontend/reporte-neutral.test.mjs` | 4 tests de plantilla con/sin áreas para ambos roles; no comprueban navegador ni navegación. |
 | `backend/scripts/validate_mvp.py` | Validador HTTP/MySQL/Zeebe aislado: migración, BPMN, registro, BFI-44, reportes y caída/recuperación. |
 
-**Última ejecución verificada (27/09/2026): 198 backend aprobadas, 0 omitidas y 0 fallidas**, incluidas **nueve MySQL** (cinco de registro y cuatro BPM). Sin `VOCALIS_TEST_MYSQL_ADMIN_URL` pueden omitirse nueve; no contarlas como aprobadas. Las cifras **76 aprobadas/4 omitidas** de Antigravity, **80** de Codex y **98** de la etapa de recuperación son antecedentes históricos.
+**Última ejecución verificada (27/09/2026): 199 backend aprobadas, 0 omitidas y 0 fallidas**, incluidas **diez MySQL** (seis de registro/seed y cuatro BPM). Sin `VOCALIS_TEST_MYSQL_ADMIN_URL` pueden omitirse diez; no contarlas como aprobadas. Las cifras **76 aprobadas/4 omitidas** de Antigravity, **80** de Codex y **98** de la etapa de recuperación son antecedentes históricos.
 
-**Cobertura medida**, no derivada del número de tests: **917/1004 líneas = 91,33 %; 175/212 ramas = 82,55 %; combinación coverage.py = 89,80 %**. Medición con coverage.py 7.16.1 sobre todo `backend/app`, sin excluir archivos de baja cobertura; tests y migraciones quedan fuera del denominador. `main.py` alcanza 96 % y `worker.py` 44 % en pytest; el recorrido real de Zeebe se acreditó aparte. La demo externa no se sumó a ese porcentaje. Evidencia actual: `/tmp/vocalis-stage2-coverage.json`.
+**Cobertura histórica medida antes del cambio de seed**, no derivada del número de tests: **917/1004 líneas = 91,33 %; 175/212 ramas = 82,55 %; combinación coverage.py = 89,80 %**. Medición con coverage.py 7.16.1 sobre todo `backend/app`, sin excluir archivos de baja cobertura; tests y migraciones quedan fuera del denominador. No se repitió coverage.py después de convertir el seed. Evidencia de esa medición: `/tmp/vocalis-stage2-coverage.json`.
 
-**E2E API/BD/broker:** 26 comprobaciones aprobadas sin `--reload` con MySQL 8.0.46 y Zeebe 8.6.7 aislados, incluido reporte accesible para el orientador con BPM aún en `registro`, caída/reintento del broker y evento `consumido`. La instalación aislada aplicó Alembic tras `Base.metadata.create_all` y cargó sólo las 44 preguntas; la cadena aún carece de migración inicial completa. Evidencia: `/tmp/vocalis-demo-58l1stz4/checks.json` y `docs/validacion_mvp.md`.
+**E2E API/BD/broker de la validación anterior:** 26 comprobaciones aprobadas sin `--reload` con MySQL 8.0.46 y Zeebe 8.6.7 aislados, incluido reporte accesible para el orientador con BPM aún en `registro`, caída/reintento del broker y evento `consumido`. La instalación aislada aplicó Alembic tras `Base.metadata.create_all` y cargó sólo las 44 preguntas; la cadena aún carece de migración inicial completa. Evidencia: `/tmp/vocalis-demo-58l1stz4/checks.json` y `docs/validacion_mvp.md`.
 
 **Frontend y carga:** cuatro pruebas de plantilla, build y ESLint dirigido a cuatro vistas aprobados. Firefox 156.0.1 (Linux, headless) completó 34 verificaciones de ambos roles a 1440×900 y 390×844 sobre el build, más carga/error/reintento del panel; capturas en `/tmp/vocalis-browser-stage2-20260927/`. Una corrida HTTP de 30 usuarios terminó 30/30 recorridos, 1500 solicitudes, 0 errores, p95 por operación ≤1,216 s y máximo ≤1,276 s; no mide renderizado ni finalización BPM. Las sesiones de usabilidad con cinco personas no se han realizado.
 
@@ -239,7 +239,7 @@ Null, ausente o desconocido → **Estado no disponible**, sin progreso activo in
 | **Autenticación con bcrypt** | `security.py`, `requirements.txt` | bcrypt está fijado a 4.0.1; el código actual usa sus funciones directamente. |
 | **Logout no redirigía** | `authService.js` | Se cambió `router.push` por `window.location.replace('/auth')` para limpiar estado Vue |
 | **Email-validator faltante** | `requirements.txt` | Se agregó `email-validator>=2.0` (requerido por Pydantic `EmailStr`) |
-| **Reinicialización de datos demo** | `seed.py` | Usa `drop_all` y `create_all`: funciona como reinicio destructivo, no como actualización de datos. |
+| **Seed destructivo eliminado** | `seed.py`, `setup.sh` | El seed sólo carga preguntas; el setup crea una base UUID nueva, aplica esquema y migraciones, y no borra datos ni volúmenes. |
 | **Estadísticas del orientador hardcodeadas** | `OrientadorDashboardView.vue` | Se reemplazó "142 / 38 / 104" por `computed()` calculados desde `studentsPool` |
 | **Nombre del orientador hardcodeado** | `OrientadorDashboardView.vue` | Se agregó `authService.getProfile()` que llama a `GET /auth/me` |
 | **`authService.getProfile()` no existía** | `authService.js` | Se creó la función que llama a `GET /auth/me` |
@@ -292,7 +292,7 @@ Las filas históricas sobre diagramas y ediciones de `WordBPM.docx` proceden del
 
 `20260922_registro_contexto` sucede a `20260922_eval_unique`: añade `orientador.establecimiento` y `estudiante.fecha_nacimiento` como nullable y crea `uq_curso_establecimiento_nombre`. Comprueba duplicados antes del DDL y aborta sin eliminarlos ni fusionarlos; requiere conexión y no ofrece downgrade destructivo automático.
 
-Codex la probó en MySQL aislado y la aplicó en desarrollo tras respaldo (`/tmp/vocalis-before-registro-2zfq7mei.sql`). Se conservaron todas las filas, incluidos 6 usuarios, 4 estudiantes, 2 orientadores y 3 cursos, con sus asociaciones. Los nuevos campos históricos quedaron NULL. `create_all` no sustituye esta migración. La compatibilidad del seed se comprobó únicamente en una BD temporal.
+Codex la probó en MySQL aislado y la aplicó en desarrollo tras respaldo (`/tmp/vocalis-before-registro-2zfq7mei.sql`). Se conservaron todas las filas, incluidos 6 usuarios, 4 estudiantes, 2 orientadores y 3 cursos, con sus asociaciones. Los nuevos campos históricos quedaron NULL. `create_all` no sustituye esta migración. El seed ahora es no destructivo; su nuevo comportamiento se probó en una BD temporal.
 
 **Migración posterior de entrega BPM:** `20260924_bpm_outbox` crea sólo `bpm_evento`, sin alterar evaluaciones/reportes ni inventar eventos históricos. UNIQUE evaluación/tipo y message_id; downgrade impide borrar trazabilidad automáticamente. `backend/BPM_RECOVERY.md` registra su aplicación en MySQL de desarrollo con preservación de filas y respaldo `/tmp/vocalis-before-bpm-outbox-ii1fy1j5.sql`. Tests MySQL y demo aislada verificaron además la migración. La cadena sigue necesitando bootstrap inicial.
 
@@ -315,7 +315,7 @@ El arranque sin recarga, la validación de IDs en el guardado individual y el ac
 - **Rendimiento:** una corrida de `measure_latency.py` con 30 usuarios en la demo aislada terminó 30/30 recorridos y 1500 solicitudes sin errores; p95 de cada operación ≤1,216 s y máximo ≤1,276 s. El umbral de 3 s se cumple sólo para latencia HTTP de esa corrida local; no se midieron renderizado, finalización BPM ni variabilidad entre corridas.
 - **Documentación y entrega:** guía reproducible, E2E HTTP/broker y recorrido visual automatizado disponibles. Quedan revisión académica/humana, interfaces administrativas de Compose, presentación y sesiones de usabilidad. No se acredita documentación ≥90 % ni 100 % del MVP; `v1.0-mvp` requiere autorización explícita.
 - **Configuración final:** configurar privadamente `ORIENTADOR_REGISTRATION_CODE` y demás secretos; Compose conserva valores de desarrollo. La imagen Docker usada en diagnóstico estaba desactualizada respecto a aiosqlite; falta reconstruir/verificar la entrega.
-- **Inicialización:** separar bootstrap, `alembic upgrade head` y seed destructivo. `create_all` no migra; el seed no administra `alembic_version` y no debe ejecutarse sobre la BD existente.
+- **Inicialización:** `setup.sh --isolated` ya prepara una BD UUID con `create_all`, Alembic y preguntas; probado en MySQL. Falta una migración inicial completa que elimine la necesidad de `create_all`. El script no inicia un frontend de Compose porque ese servicio no existe; la configuración final y el despliegue siguen pendientes.
 - **Reproducibilidad de reportes:** `carreras_json/interpretaciones_json` siguen sin versión ni instantánea. Acordar versión conjunta de matriz, selección, textos y política histórica antes de activarlos. `backend/REPORT_CONTENT.md` documenta la decisión y la justificación académica pendiente.
 
 ### Limpieza y elementos visuales pendientes
@@ -370,7 +370,7 @@ backend/
 │   ├── config.py          # BaseSettings (DATABASE_URL, ZEEBE_GATEWAY, JWT_SECRET, etc.)
 │   ├── database.py        # create_async_engine, async_sessionmaker, Base, get_db, init_db
 │   ├── main.py            # FastAPI, CORS, lifespan (init_db, worker y reintentos)
-│   ├── seed.py            # Datos iniciales (44 preguntas, orientador, cursos, estudiante demo)
+│   ├── seed.py            # Carga idempotente de 44 preguntas, sin cuentas demo
 │   ├── worker.py          # Zeebe workers (calcular-ocean, generar-reporte, notificar-orientador)
 │   ├── models/
 │   │   ├── __init__.py    # Exporta todos los modelos
@@ -481,12 +481,9 @@ GET    /api/orientador/estudiante/{id}/reporte → ReporteOut
 
 `ReporteOut = { studentName, evaluatedAt, scores, dimensions, careerAreas }`. El mismo contrato se usa en las tres consultas; no incluye estado BPM. `careerAreas` puede ser `[]`; `vocationalImpact` conserva un texto neutro por compatibilidad. El radar identifica dimensiones por letra, no por orden JSON.
 
-### Credenciales de desarrollo (seed)
+### Cuentas de desarrollo
 
-| Rol | Email | Contraseña |
-|-----|-------|-----------|
-| Orientador | `orientador@vocalis.cl` | `vocalis123` |
-| Estudiante | `estudiante@vocalis.cl` | `vocalis123` |
+El seed ya no crea cuentas demo. En una base nueva, registrar estudiantes y orientadores mediante la API; el código privado de orientador se configura fuera del repositorio. Cuentas históricas de una base existente no se borran.
 
 ### Variables de entorno
 
@@ -508,7 +505,7 @@ VITE_API_BASE_URL=http://localhost:8000/api
 
 ### Cómo levantar el proyecto
 
-La receta completa, secretos, bootstrap, migraciones, carga inicial no destructiva, despliegue BPMN y limpieza están en `docs/validacion_mvp.md`. No ejecutar `python -m app.seed` sobre la BD existente.
+La receta de laboratorio y despliegue BPMN está en `docs/validacion_mvp.md`. `setup.sh --isolated` crea una BD UUID nueva y aplica esquema, Alembic y preguntas sin borrar datos; se probó en MySQL real con 44 preguntas y cero usuarios/cursos. Requiere `VOCALIS_SETUP_MYSQL_ADMIN_URL` privado y MySQL disponible; no arranca contenedores, frontend ni API. Para integrar Zeebe se necesita un broker exclusivo. `python -m app.seed` por sí solo tampoco borra tablas ni cuentas.
 
 ```bash
 # Infraestructura de desarrollo (configurar secretos privados antes de usarla):
@@ -571,17 +568,17 @@ Los estados valoran la fase completa, incluidas sus validaciones; «Parcial» no
 
 | Fase | Estado actual | Observaciones |
 |------|---------------|---------------|
-| 1 — Backend Foundation + MySQL | Implementado y probado en alcance base; cierre parcial | Diez modelos de tabla, auth, scorer, seed, MySQL y tres migraciones. Pruebas aisladas y E2E API; pregunta inexistente al guardar devuelve 422. Falta migración inicial completa y configuración final. |
+| 1 — Backend Foundation + MySQL | Implementado y probado en alcance base; cierre parcial | Diez modelos de tabla, auth, scorer, seed seguro, MySQL y tres migraciones. `setup.sh --isolated` probado en BD UUID; pregunta inexistente al guardar devuelve 422. Falta migración inicial completa y configuración final. |
 | 2 — JWT + Frontend | Implementado; API y Firefox probados, cierre parcial | Servicios, JWT, guards, registro por rol, fecha/edad, curso y código privado. Registro/login/logout de ambos roles probados en Firefox a 1440×900 y 390×844; secretos finales y revisión humana adicional pendientes. |
 | 3 — Camunda 8 | Implementado y probado sin recarga; resiliencia parcial | Outbox tras commit, reintentos, clave persistida, logging y estados reales; E2E MySQL/Zeebe sin `--reload` con caída/reinicio. Ventanas extremas y conciliación manual siguen pendientes. |
 | 4 — Reportes + Orientador | Implementado y probado en API/Firefox; cierre parcial | Permisos por curso, tres contratos iguales, contenido neutral español, cinco ejes y reporte accesible durante incidencia BPM. 53 tests de reportes, 29 de reglas, 8 de estado y 4 de plantilla; Firefox verificó panel y reporte. Pendientes respaldo académico/versionado histórico y revisión humana adicional. |
-| 5 — Testing y validación | Parcial: pruebas técnicas verificadas | 198 backend aprobadas (9 MySQL), 0 omitidas/fallidas; líneas 91,33 %, ramas 82,55 %, combinación 89,80 %. 26 checks E2E sin recarga, 4 pruebas frontend y 34 comprobaciones Firefox. Una corrida HTTP de 30 usuarios cumplió <3 s por solicitud; cinco participantes y satisfacción siguen pendientes. |
+| 5 — Testing y validación | Parcial: pruebas técnicas verificadas | 199 backend aprobadas (10 MySQL), 0 omitidas/fallidas; cobertura 89,80 % medida antes del cambio de seed y pendiente de repetir. 26 checks E2E sin recarga, 4 pruebas frontend y 34 comprobaciones Firefox pertenecen a la validación anterior. Una corrida HTTP de 30 usuarios cumplió <3 s por solicitud; cinco participantes y satisfacción siguen pendientes. |
 | 6 — Documentación y entrega | Parcial: guía y demo técnica/visual verificadas | Documentación de recuperación/contenido, demo HTTP/MySQL/Zeebe y recorrido Firefox reproducibles. Pendientes revisión académica/humana, despliegue final reconstruido, usabilidad y presentación. Tag v1.0-mvp no creado; requiere autorización explícita. |
 
 ### Evolución respecto del diseño inicial
 
 - **Modelo de datos:** frente a la referencia histórica a ocho modelos, el código exporta **diez modelos de tabla** en `backend/app/models/__init__.py`, incluidos `curso` y `bpm_evento`. Roles reales: estudiante y orientador; relación estudiante → curso → orientador. La diferencia de número no es un error.
 - **Recomendación:** no existe un `career_mapper.py` separado. `CAREER_MATRIX` y `get_career_areas()` están en `routers/reporte.py`; hay seis entradas explícitas, no diez. Se seleccionan referencias exploratorias al consultar scores persistidos; no hay fallback ni uso de N como inclinación profesional. La persistencia histórica versionada se aplazó.
-- **Pruebas:** doce módulos backend suman 198 casos aprobados; abarcan permisos/contratos, reglas, outbox, ciclo de vida del worker y concurrencia MySQL. Hay cuatro pruebas acotadas Vue. Cobertura, E2E HTTP/Zeebe sin recarga y Firefox real medidos; quedan usabilidad y validación en otros entornos.
+- **Pruebas:** doce módulos backend suman 199 casos aprobados, incluidos diez MySQL; abarcan permisos/contratos, reglas, outbox, ciclo de vida del worker, seed seguro y concurrencia. Hay cuatro pruebas acotadas Vue. La cobertura, el E2E HTTP/Zeebe sin recarga y Firefox corresponden a la validación anterior; quedan repetición de cobertura, usabilidad y validación en otros entornos.
 - **Estrategia Camunda:** el BPMN utiliza receiveTask y publicación desde la API, no un cuestionario respondido en Tasklist. La API calcula y confirma OCEAN/reporte junto con outbox antes de publicar; los workers avanzan estados idempotentes. Arranque sin recarga y recuperación breve probados, con límites de deduplicación/conciliación.
 - **Avances adelantados:** al **27/09/2026**, dentro del intervalo original de fase 2, ya hay implementación de fases 3–4, pruebas/cobertura de fase 5 y guía/demo técnica de fase 6. Se conserva el calendario histórico; sólo se acredita cada resultado dentro del entorno y alcance probados, sin declarar cerrado el MVP.

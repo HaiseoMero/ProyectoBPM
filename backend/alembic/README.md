@@ -16,8 +16,8 @@ HAVING COUNT(*) > 1;
 
 Si hay duplicados, decidir explícitamente cómo conservar evaluaciones, respuestas,
 reportes y procesos asociados. La migración comprueba de nuevo los duplicados y
-aborta sin eliminarlos ni fusionarlos. No ejecutar el seed para resolverlos:
-el seed borra las tablas.
+aborta sin eliminarlos ni fusionarlos. El seed no resuelve duplicados: ahora sólo carga las 44 preguntas en una tabla
+vacía y no altera evaluaciones ni usuarios.
 
 Desde `backend`, con `DATABASE_URL` apuntando al destino revisado:
 
@@ -27,5 +27,8 @@ venv/bin/python -m alembic upgrade head
 
 La comprobación requiere conexión; no admite `--sql`. `create_all` no actualiza
 tablas existentes, por lo que cambiar el modelo no sustituye esta migración.
-En una instalación nueva, crear primero el esquema por el mecanismo existente;
-si la unicidad ya existe, el upgrade no la duplica.
+En una instalación nueva, `./setup.sh --isolated` desde la raíz crea una base
+UUID, inicializa el esquema con `Base.metadata.create_all`, aplica
+`alembic upgrade head` y carga las preguntas. La cadena todavía no incluye
+una revisión inicial completa; `create_all` no sustituye las migraciones
+sobre bases existentes.

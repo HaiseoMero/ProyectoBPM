@@ -1,24 +1,13 @@
-# Contenido exploratorio del reporte
+# Contenido exploratorio del reporte (MVP)
 
-Las cinco descripciones OCEAN son generales y están en español. No clasifican
-puntajes como aptitud, éxito o preferencia por una profesión. Neuroticismo se
-describe en términos de preocupación/tensión, sin convertirlo en inclinación
-profesional ni diagnóstico. `vocationalImpact` se conserva como string por
-compatibilidad, con un texto explícito sobre el límite de inferencia del puntaje.
+Las cinco descripciones OCEAN ahora incluyen **interpretaciones dinámicas por cuartil** (0-25%, 26-50%, 51-75%, 76-100%). Estas descripciones mantienen un tono especulativo y exploratorio. No clasifican puntajes como aptitud, éxito o preferencia por una profesión. Neuroticismo se describe en términos de reactividad emocional y manejo del estrés, sin convertirlo en inclinación profesional ni diagnóstico. `vocationalImpact` se conserva como string por compatibilidad, con un texto explícito sobre el límite de inferencia del puntaje.
 
-`CAREER_MATRIX` conserva sus seis pares y listas de carreras existentes. Sus textos
-describen ámbitos de actividad, sin «ideal para» ni atribuir vocación al estudiante.
-Se presentan como referencias exploratorias del prototipo, no como relaciones
-Big Five–profesión académicamente validadas. No se agregaron asociaciones.
+La `CAREER_MATRIX` ha sido actualizada para cubrir los **6 pares posibles** formados por O, C, E, A, mapeándolos a las **10 áreas del conocimiento oficiales del Mineduc (SIES)** en Chile. Sus textos describen ámbitos de actividad de forma exploratoria (ej. "A modo exploratorio", "Solo como referencia") e incluyen carreras de ejemplo. El sustento teórico para cruzar los Cinco Grandes (OCEAN) con áreas de interés profesional (modelo RIASEC) se basa en metaanálisis documentados (Barrick et al., 2003; Larson et al., 2002), justificando su uso como herramienta de apoyo al orientador.
 
-La selección mantiene coincidencia directa y búsqueda inversa. Devuelve
-`careerAreas: []` si no hay una regla, hay menos de dos dimensiones, N está entre
-las dos mayores, o un empate impide ordenar las dos primeras inequívocamente
-(primera con segunda, o segunda con tercera). No se descarta N para buscar una
-pareja alternativa. Tampoco se usa el orden del JSON para resolver empates.
-La lista vacía significa ausencia de recomendación con estas reglas, no ausencia
-de opciones profesionales para el estudiante. Los puntajes y las cinco
-descripciones siguen disponibles en los tres endpoints, con la misma autorización.
+La selección de áreas obedece a una política de **asignación exploratoria**:
+- La dimensión **N (Neuroticismo)** se excluye deliberadamente de la búsqueda del Top 2, ya que no predice intereses profesionales, asegurando que el cruce se haga siempre sobre las 4 dimensiones restantes.
+- La matriz ahora garantiza una coincidencia para cualquiera de las 6 combinaciones.
+- Los empates en los primeros lugares se resuelven de forma nativa por el ordenamiento estable de Python. El sistema ya no devuelve un resultado neutral (lista vacía) ante empates, priorizando siempre sugerir un área de exploración válida.
 
 ## Persistencia histórica: aplazada
 
@@ -29,11 +18,10 @@ un reporte antiguo puede mostrar textos diferentes tras una actualización.
 Esta tarea no rellena esos campos ni inventa contenidos históricos.
 
 Antes de activar esa persistencia deben acordarse una versión de contenido que
-identifique conjuntamente matriz, selección/desempates, textos y significado del
-resultado neutral; un formato de instantánea; y una política de lectura para
-versiones anteriores y registros sin versión. Esa versión identifica lo que
-calculó el software, no acredita validez académica. La justificación de las
-asociaciones vocacionales sigue pendiente: estas correcciones no la aportan.
+identifique conjuntamente matriz, selección/desempates, textos por cuartil y
+un formato de instantánea. Esa versión identifica lo que calculó el software,
+y refleja la política exploratoria del MVP apoyada en la bibliografía oficial
+del proyecto.
 
 Cuando se cierre ese contrato, la instantánea y su versión deben guardarse con
 el reporte en su transacción de creación, y leerse sin recalcular con otras
@@ -43,9 +31,9 @@ persistencia histórica en este cambio ni se modifica el modelo de evaluación.
 
 ## Pruebas
 
-- `backend/tests/test_career_areas.py`: asociaciones conservadas, inversas,
-  ausencia de fallback, N, datos insuficientes y empates independientes del orden.
-- `backend/tests/test_reportes.py`: contrato neutral en los tres endpoints,
+- `backend/tests/test_career_areas.py`: asociaciones nuevas, inversas,
+  ausencia de N, datos insuficientes, y resolución estable de empates.
+- `backend/tests/test_reportes.py`: contrato exploratorio en los tres endpoints,
   descripciones españolas, límites de interpretación y lecturas sin alterar
   campos históricos; conserva las pruebas de autorización.
 - `tests/frontend/reporte-neutral.test.mjs`: renderizado de la plantilla Vue con

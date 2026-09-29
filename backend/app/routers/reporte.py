@@ -10,17 +10,46 @@ from datetime import datetime
 
 router = APIRouter(prefix="/evaluacion", tags=["Reporte Vocacional"])
 
-# Descripciones generales de dimensiones; no inferencias sobre profesiones ni diagnósticos.
-DIMENSION_INTERPRETATIONS = {
-    "O": "Creatividad, curiosidad y apertura a nuevas experiencias.",
-    "C": "Organización, autodisciplina y orientación al logro.",
-    "E": "Sociabilidad, asertividad y nivel de energía.",
-    "A": "Empatía, cooperación y confianza en los demás.",
-    "N": "Tendencia a experimentar preocupación, tensión y emociones desagradables. No indica una inclinación profesional."
-}
+def get_dimension_interpretation(letter: str, score_percent: int) -> str:
+    descriptions = {
+        "O": (
+            "Tus respuestas indican una preferencia por lo familiar y lo concreto, sugiriendo comodidad en entornos estructurados.",
+            "Podrías sentirte cómodo con enfoques tradicionales, aunque manteniendo cierta apertura a explorar ideas nuevas cuando es necesario.",
+            "Tus resultados sugieren una inclinación hacia la curiosidad y la exploración de nuevos conceptos de forma moderada.",
+            "Tus respuestas reflejan una fuerte tendencia hacia la creatividad, la imaginación y el interés por lo abstracto o novedoso.",
+        ),
+        "C": (
+            "Tus resultados sugieren un enfoque flexible frente a las tareas, prefiriendo la espontaneidad por sobre la planificación estricta.",
+            "Es posible que prefieras un equilibrio entre la flexibilidad y el orden, adaptándote a las responsabilidades sin rigidez.",
+            "Tus respuestas indican una tendencia hacia la organización y el cumplimiento de metas de manera metódica.",
+            "Pareces tener una fuerte orientación hacia la autodisciplina, la planificación detallada y el enfoque en objetivos a largo plazo.",
+        ),
+        "E": (
+            "Tus respuestas sugieren una preferencia por entornos tranquilos y actividades solitarias o en grupos muy pequeños.",
+            "Podrías disfrutar de interacciones sociales de forma selectiva, valorando también tus espacios de reserva y reflexión.",
+            "Tus resultados indican una tendencia a disfrutar de la compañía de otros y a participar activamente en entornos sociales.",
+            "Pareces sentirte muy cómodo en situaciones de alta interacción, mostrando una tendencia hacia el dinamismo y la comunicación abierta.",
+        ),
+        "A": (
+            "Tus resultados sugieren un estilo de interacción más objetivo y competitivo, priorizando la franqueza sobre el consenso.",
+            "Es posible que mantengas un equilibrio entre cooperar con otros y defender tus propios puntos de vista de manera analítica.",
+            "Tus respuestas reflejan una inclinación hacia la empatía y la colaboración, buscando generalmente la armonía en tus relaciones.",
+            "Pareces tener una fuerte tendencia hacia la comprensión, el apoyo a los demás y la resolución pacífica de conflictos.",
+        ),
+        "N": (
+            "Tus respuestas indican una tendencia hacia la calma y la estabilidad emocional, sugiriendo facilidad para manejar el estrés.",
+            "Podrías mantener la tranquilidad en la mayoría de las situaciones, aunque reaccionando con cierta sensibilidad ante presiones específicas.",
+            "Tus resultados sugieren que podrías experimentar emociones como la preocupación o la ansiedad de manera más frecuente ante desafíos.",
+            "Pareces tener una mayor reactividad emocional, lo que sugiere una tendencia a experimentar el estrés o la tensión con mayor intensidad.",
+        ),
+    }
+    if letter not in descriptions or not 0 <= score_percent <= 100:
+        return ""
+    quartile = min((score_percent - 1) // 25, 3) if score_percent else 0
+    return descriptions[letter][quartile]
 
 VOCATIONAL_SCOPE = "Este puntaje por sí solo no permite inferir aptitud ni recomendar una profesión."
-AREA_SCOPE = "Referencia exploratoria de las reglas del prototipo; no acredita afinidad ni aptitud profesional."
+AREA_SCOPE = "Referencia exploratoria de las reglas del prototipo; no acredita aptitud profesional ni predice desempeño."
 
 DIMENSION_NAMES = {
     "O": "Apertura a la Experiencia",
@@ -38,35 +67,51 @@ DIMENSION_COLORS = {
     "N": "#EF4444"
 }
 
-# Asociaciones preexistentes del prototipo: no equivalen a evidencia de ajuste vocacional.
+# Asociaciones exploratorias del prototipo; no equivalen a evidencia de ajuste vocacional.
 CAREER_MATRIX = {
-    ("O", "C"): CareerArea(title="Tecnología e Informática", desc="Incluye desarrollo de software y análisis de datos. " + AREA_SCOPE, carreras=["Ingeniería Informática", "Ciencia de Datos", "Ciberseguridad"]),
-    ("C", "O"): CareerArea(title="Ingeniería y Gestión de Procesos", desc="Incluye planificación y gestión de procesos y recursos. " + AREA_SCOPE, carreras=["Ingeniería Civil Industrial", "Gestión de Proyectos"]),
-    ("E", "A"): CareerArea(title="Comunicación y Relaciones Públicas", desc="Incluye comunicación, medios y relaciones públicas. " + AREA_SCOPE, carreras=["Periodismo", "Relaciones Públicas"]),
-    ("A", "E"): CareerArea(title="Salud y Educación", desc="Incluye atención de salud y enseñanza. " + AREA_SCOPE, carreras=["Medicina", "Enfermería", "Pedagogía", "Psicología"]),
-    ("O", "E"): CareerArea(title="Artes y Diseño", desc="Incluye creación artística, comunicación visual y diseño. " + AREA_SCOPE, carreras=["Diseño Gráfico", "Arquitectura", "Artes Visuales"]),
-    ("C", "A"): CareerArea(title="Administración y Contabilidad", desc="Incluye administración, contabilidad y auditoría. " + AREA_SCOPE, carreras=["Contabilidad", "Auditoría", "Administración de Empresas"])
+    ("O", "C"): CareerArea(
+        title="Tecnología, Ciencias Básicas y Agropecuaria",
+        desc="Tu perfil sugiere una combinación de curiosidad intelectual y pensamiento estructurado. Podrías sentir afinidad por campos que requieren resolver problemas complejos de forma metódica. " + AREA_SCOPE,
+        carreras=["A modo exploratorio: Ingeniería Informática", "Biología", "Agronomía", "Astronomía"],
+    ),
+    ("O", "E"): CareerArea(
+        title="Arte, Arquitectura y Humanidades (Comunicaciones)",
+        desc="Tus respuestas reflejan creatividad, necesidad de expresión y energía social. Podrías encontrar interés en entornos dinámicos orientados a comunicar ideas o diseñar. " + AREA_SCOPE,
+        carreras=["Solo como referencia: Arquitectura", "Diseño Gráfico", "Periodismo", "Relaciones Públicas"],
+    ),
+    ("O", "A"): CareerArea(
+        title="Ciencias Sociales y Humanidades",
+        desc="Tu perfil combina el interés por explorar nuevos conceptos con una fuerte orientación hacia la empatía y la comprensión humana. Podrías disfrutar analizando el comportamiento. " + AREA_SCOPE,
+        carreras=["Por ejemplo: Psicología", "Sociología", "Antropología", "Trabajo Social"],
+    ),
+    ("C", "E"): CareerArea(
+        title="Administración, Comercio y Derecho",
+        desc="Tus resultados sugieren un enfoque organizado y orientado a metas, sumado a habilidades de persuasión e interacción. Podrías adaptarte bien a entornos de gestión o normas. " + AREA_SCOPE,
+        carreras=["Para investigar: Ingeniería Comercial", "Derecho", "Administración Pública", "Auditoría"],
+    ),
+    ("C", "A"): CareerArea(
+        title="Salud (Gestión y Cuidados) y Agropecuaria",
+        desc="Tu perfil indica cuidado por el detalle, seguimiento de protocolos y una clara vocación de servicio. Es posible que te sientas cómodo en áreas de asistencia metódica. " + AREA_SCOPE,
+        carreras=["A modo de referencia: Medicina", "Enfermería", "Tecnología Médica", "Medicina Veterinaria"],
+    ),
+    ("E", "A"): CareerArea(
+        title="Educación y Salud (Atención Comunitaria)",
+        desc="Tus respuestas destacan un alto dinamismo social, entusiasmo y empatía. Podrías sentir gran afinidad por profesiones centradas directamente en instruir, acompañar o sanar a otros. " + AREA_SCOPE,
+        carreras=["A modo exploratorio: Pedagogía", "Educación Parvularia", "Fonoaudiología", "Kinesiología"],
+    ),
 }
 
 def get_career_areas(scores: dict) -> list[CareerArea]:
-    # Sin desempate definido, no escoger una profesión por orden del JSON.
-    sorted_dims = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    # N no participa en la asignación exploratoria; los empates conservan el orden recibido.
+    sorted_dims = sorted(
+        ((letter, value) for letter, value in scores.items() if letter in {"O", "C", "E", "A"}),
+        key=lambda item: item[1], reverse=True,
+    )
     if len(sorted_dims) >= 2:
-        if sorted_dims[0][1] == sorted_dims[1][1]:
-            return []
-        if len(sorted_dims) > 2 and sorted_dims[1][1] == sorted_dims[2][1]:
-            return []
         top1, top2 = sorted_dims[0][0], sorted_dims[1][0]
-        # N no se utiliza para inferir áreas profesionales.
-        if "N" in (top1, top2):
-            return []
-        # Mantener las asociaciones directas y la búsqueda inversa existentes.
-        if (top1, top2) in CAREER_MATRIX:
-            return [CAREER_MATRIX[(top1, top2)]]
-        elif (top2, top1) in CAREER_MATRIX:
-            return [CAREER_MATRIX[(top2, top1)]]
-    
-    # Ausencia de regla no equivale a una recomendación de Tecnología.
+        area = CAREER_MATRIX.get((top1, top2)) or CAREER_MATRIX.get((top2, top1))
+        if area:
+            return [area]
     return []
 
 def build_reporte_out(reporte: ReporteVocacional, student_name: str | None) -> ReporteOut:
@@ -78,7 +123,7 @@ def build_reporte_out(reporte: ReporteVocacional, student_name: str | None) -> R
             name=DIMENSION_NAMES.get(k, k),
             score=int(v * 100),
             color=DIMENSION_COLORS.get(k, "#000000"),
-            interpretation=DIMENSION_INTERPRETATIONS.get(k, ""),
+            interpretation=get_dimension_interpretation(k, int(v * 100)),
             vocationalImpact=VOCATIONAL_SCOPE
         ))
         

@@ -222,20 +222,22 @@ async def test_all_three_endpoints_share_exact_report_contract(report_api):
     for dimension in body['dimensions']:
         assert set(dimension) == {'letter', 'name', 'score', 'color', 'interpretation', 'vocationalImpact'}
         assert dimension['vocationalImpact'] == 'Este puntaje por sí solo no permite inferir aptitud ni recomendar una profesión.'
-    assert body['careerAreas'] == [{
-        'title': 'Tecnología e Informática',
-        'desc': 'Incluye desarrollo de software y análisis de datos. Referencia exploratoria de las reglas del prototipo; no acredita afinidad ni aptitud profesional.',
-        'carreras': ['Ingeniería Informática', 'Ciencia de Datos', 'Ciberseguridad'],
-    }]
+    assert len(body['careerAreas']) == 1
+    assert body['careerAreas'][0]['title'] == 'Tecnología, Ciencias Básicas y Agropecuaria'
+    assert set(body['careerAreas'][0]) == {'title', 'desc', 'carreras'}
+    assert 'Referencia exploratoria' in body['careerAreas'][0]['desc']
+    assert body['careerAreas'][0]['carreras'] == [
+        'A modo exploratorio: Ingeniería Informática', 'Biología', 'Agronomía', 'Astronomía',
+    ]
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('scores', [
-    {'O': 0.9, 'A': 0.8, 'E': 0.3, 'C': 0.2, 'N': 0.1},
-    {'N': 0.95, 'O': 0.9, 'C': 0.8, 'A': 0.2, 'E': 0.1},
-    dict.fromkeys('OCEAN', 0.5),
+@pytest.mark.parametrize('scores,title', [
+    ({'O': 0.9, 'A': 0.8, 'E': 0.3, 'C': 0.2, 'N': 0.1}, 'Ciencias Sociales y Humanidades'),
+    ({'N': 0.95, 'O': 0.9, 'C': 0.8, 'A': 0.2, 'E': 0.1}, 'Tecnología, Ciencias Básicas y Agropecuaria'),
+    (dict.fromkeys('OCEAN', 0.5), 'Tecnología, Ciencias Básicas y Agropecuaria'),
 ])
-async def test_neutral_report_preserves_scores_and_contract_on_all_endpoints(report_api, scores):
+async def test_exploratory_area_preserves_scores_and_contract_on_all_endpoints(report_api, scores, title):
     client, sessions = report_api
     async with sessions() as db:
         (await db.get(ReporteVocacional, 101)).scores_json = scores
@@ -245,7 +247,8 @@ async def test_neutral_report_preserves_scores_and_contract_on_all_endpoints(rep
         response = await client.get(path, headers=headers(user))
         assert response.status_code == 200
         body = response.json()
-        assert body['careerAreas'] == []
+        assert len(body['careerAreas']) == 1
+        assert body['careerAreas'][0]['title'] == title
         assert body['scores'] == scores
         assert len(body['dimensions']) == 5
         assert ReporteOut.model_validate(body).model_dump() == body
@@ -253,20 +256,17 @@ async def test_neutral_report_preserves_scores_and_contract_on_all_endpoints(rep
     assert bodies[0] == bodies[1] == bodies[2]
 
 
-def test_spanish_descriptions_and_neutral_scope_do_not_depend_on_score():
-    from app.routers.reporte import build_reporte_out
-    expected = {
-        'O': 'Creatividad, curiosidad y apertura a nuevas experiencias.',
-        'C': 'Organización, autodisciplina y orientación al logro.',
-        'E': 'Sociabilidad, asertividad y nivel de energía.',
-        'A': 'Empatía, cooperación y confianza en los demás.',
-        'N': 'Tendencia a experimentar preocupación, tensión y emociones desagradables. No indica una inclinación profesional.',
-    }
+def test_spanish_interpretations_change_with_score_and_keep_scope():
+    from app.routers.reporte import build_reporte_out, get_dimension_interpretation
     for value in [0, 0.5, 1]:
         result = build_reporte_out(ReporteVocacional(scores_json=dict.fromkeys('OCEAN', value)), 'Alumno')
-        assert {d.letter: d.interpretation for d in result.dimensions} == expected
+        assert {d.letter: d.interpretation for d in result.dimensions} == {
+            letter: get_dimension_interpretation(letter, int(value * 100)) for letter in 'OCEAN'
+        }
         assert all(d.vocationalImpact == 'Este puntaje por sí solo no permite inferir aptitud ni recomendar una profesión.' for d in result.dimensions)
         assert all(d.score == int(value * 100) for d in result.dimensions)
+    assert get_dimension_interpretation('O', 0).startswith('Tus respuestas indican una preferencia')
+    assert get_dimension_interpretation('N', 100).startswith('Pareces tener una mayor reactividad')
 
 
 @pytest.mark.asyncio

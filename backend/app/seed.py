@@ -1,8 +1,7 @@
 import asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import engine, Base, async_session_maker
-from app.models import Curso, Orientador, Usuario, Estudiante, Pregunta
-from app.utils.security import hash_password
+from sqlalchemy import select
+from app.database import async_session_maker
+from app.models import Pregunta
 
 PREGUNTAS = [
     (1, 'Es sociable, conversador y expresivo.', 'E', False),
@@ -51,45 +50,26 @@ PREGUNTAS = [
     (44, 'Tiene sofisticación y buen gusto artístico.', 'O', False),
 ]
 
-async def seed_data():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-        
+async def seed_data() -> int:
+    """Cargar únicamente las preguntas en una tabla vacía; nunca alterar datos existentes."""
     async with async_session_maker() as db:
-        # Preguntas
-        for orden, texto, dim, inv in PREGUNTAS:
-            db.add(Pregunta(orden=orden, texto=texto, dimension=dim, es_invertida=inv))
-            
-        # Orientador
-        user_ori = Usuario(email='orientador@vocalis.cl', hashed_password=hash_password('vocalis123'), rol='orientador')
-        db.add(user_ori)
-        await db.flush()
-        
-        orientador = Orientador(usuario_id=user_ori.id, nombre_completo='Prof. María González', departamento='Orientación', establecimiento='Liceo Demo Vócalis')
-        db.add(orientador)
-        await db.flush()
-        
-        # Cursos
-        curso_a = Curso(nombre='4° Medio A', establecimiento='Liceo Demo Vócalis', orientador_id=orientador.id)
-        curso_b = Curso(nombre='4° Medio B', establecimiento='Liceo Demo Vócalis', orientador_id=orientador.id)
-        curso_c = Curso(nombre='4° Medio C', establecimiento='Liceo Demo Vócalis', orientador_id=orientador.id)
-        db.add_all([curso_a, curso_b, curso_c])
-        await db.flush()
-        
-        # Estudiante
-        user_est = Usuario(email='estudiante@vocalis.cl', hashed_password=hash_password('vocalis123'), rol='estudiante')
-        db.add(user_est)
-        await db.flush()
-        
-        estudiante = Estudiante(usuario_id=user_est.id, nombre_completo='José Miguel Piña', edad=17, curso_id=curso_a.id)
-        db.add(estudiante)
-        
+        existing_orders = set((await db.scalars(select(Pregunta.orden))).all())
+        expected_orders = {orden for orden, _, _, _ in PREGUNTAS}
+        if existing_orders:
+            if existing_orders != expected_orders:
+                raise ValueError("La tabla de preguntas está incompleta o contiene órdenes inesperados; no se modificó")
+            return 0
+
+        db.add_all([
+            Pregunta(orden=orden, texto=texto, dimension=dim, es_invertida=inv)
+            for orden, texto, dim, inv in PREGUNTAS
+        ])
         await db.commit()
-        print("Base de datos inicializada con éxito")
+        return len(PREGUNTAS)
 
 async def main():
-    await seed_data()
+    inserted = await seed_data()
+    print(f"Preguntas BFI-44 insertadas: {inserted}")
 
 if __name__ == "__main__":
     asyncio.run(main())

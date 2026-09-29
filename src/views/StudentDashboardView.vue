@@ -110,8 +110,11 @@
             <span class="action-card__badge action-card__badge--success">Reporte disponible</span>
             <h2 class="action-card__title">Reporte generado</h2>
             <p v-if="report.careerAreas.length" class="action-card__desc">
-              Áreas incluidas en tu reporte:
+              Áreas para explorar incluidas en tu reporte:
               <strong>{{ report.careerAreas.map(area => area.title).join(', ') }}</strong>.
+            </p>
+            <p v-if="report.careerAreas.length" class="action-card__warning" role="note">
+              Estas áreas son referencias exploratorias del prototipo; los resultados BFI-44 no evalúan tus aptitudes ni determinan una carrera.
             </p>
             <p v-else class="action-card__desc">El reporte no incluye áreas profesionales.</p>
             <div class="report-quick-stats">

@@ -112,16 +112,34 @@ async def test_mysql_migration_preserves_legacy_rows_and_unique(mysql_db, monkey
 
 
 @pytest.mark.asyncio
-async def test_seed_is_compatible_in_disposable_mysql_only(mysql_db, monkeypatch):
+async def test_seed_adds_only_questions_and_preserves_existing_mysql_data(mysql_db, monkeypatch):
     from app import seed
-    # Ambos recursos se sustituyen: nunca ejecutar seed sobre el motor de desarrollo.
-    monkeypatch.setattr(seed, 'engine', mysql_db)
     monkeypatch.setattr(seed, 'async_session_maker', async_sessionmaker(mysql_db))
-    await seed.seed_data()
+    async with mysql_db.begin() as conn:
+        await conn.execute(text("INSERT INTO usuario (email, hashed_password, rol, is_active) "
+                                "VALUES ('existing@example.test', 'unchanged', 'estudiante', 1)"))
+    assert await seed.seed_data() == 44
+    assert await seed.seed_data() == 0
     async with mysql_db.connect() as conn:
         assert await conn.scalar(text('SELECT COUNT(*) FROM pregunta')) == 44
-        assert await conn.scalar(text('SELECT COUNT(*) FROM curso c JOIN orientador o ON c.orientador_id=o.id WHERE c.establecimiento=o.establecimiento')) == 3
-        assert (await conn.execute(text('SELECT edad,fecha_nacimiento FROM estudiante'))).one() == (17, None)
+        assert await conn.scalar(text('SELECT COUNT(*) FROM usuario')) == 1
+        assert await conn.scalar(text("SELECT hashed_password FROM usuario WHERE email='existing@example.test'")) == 'unchanged'
+        assert await conn.scalar(text('SELECT COUNT(*) FROM curso')) == 0
+        assert await conn.scalar(text('SELECT COUNT(*) FROM estudiante')) == 0
+
+
+@pytest.mark.asyncio
+async def test_seed_refuses_partial_question_bank_without_changes(mysql_db, monkeypatch):
+    from app import seed
+    monkeypatch.setattr(seed, 'async_session_maker', async_sessionmaker(mysql_db))
+    async with mysql_db.begin() as conn:
+        await conn.execute(text("INSERT INTO pregunta (orden, texto, dimension, es_invertida) "
+                                "VALUES (1, 'Pregunta existente', 'E', 0)"))
+    with pytest.raises(ValueError, match='incompleta'):
+        await seed.seed_data()
+    async with mysql_db.connect() as conn:
+        assert await conn.scalar(text('SELECT COUNT(*) FROM pregunta')) == 1
+        assert await conn.scalar(text('SELECT texto FROM pregunta WHERE orden=1')) == 'Pregunta existente'
 
 
 @pytest.mark.asyncio

@@ -8,10 +8,10 @@ Fecha: 27 de septiembre de 2026. Fuente de verdad: código y ejecuciones locales
 
 | Verificación | Resultado | Evidencia/alcance |
 |---|---|---|
-| Suite backend completa | **198 aprobadas, 0 omitidas, 0 fallidas** | Incluidas nueve pruebas MySQL opcionales: cinco de registro/migración/seed y cuatro de BPM/concurrencia |
+| Suite backend completa | **199 aprobadas, 0 omitidas, 0 fallidas** | Incluidas diez pruebas MySQL opcionales: seis de registro/migración/seed y cuatro de BPM/concurrencia |
 | Frontend existente | 4 aprobadas | `node --test tests/frontend/reporte-neutral.test.mjs`; pruebas de plantilla |
 | Compilación y calidad frontend | Aprobadas | `npm run build`, ESLint dirigido a las cuatro vistas modificadas y `git diff --check` |
-| Instalación aislada MySQL | Aprobada | BD UUID nueva, `Base.metadata.create_all` y tres migraciones Alembic hasta `20260924_bpm_outbox`; solo 44 preguntas cargadas, sin seed destructivo |
+| Instalación aislada MySQL | Aprobada | `setup.sh --isolated` probado en BD UUID: `Base.metadata.create_all`, tres migraciones hasta `20260924_bpm_outbox`, 44 preguntas, 0 usuarios/cursos. Recursos de prueba retirados |
 | E2E API/MySQL/Zeebe sin `--reload` | **26/26 comprobaciones** | Registro de ambos roles, curso, parcial/reanudación, 44 respuestas, envío, reporte, autorización por curso, BPMN real y `reporte_listo` |
 | Caída y recuperación de Zeebe | Aprobada | Reporte conservado y accesible con BPM pendiente; reinicio del mismo broker, reintento de outbox y avance a `reporte_listo` |
 | Navegador real | **34 verificaciones funcionales y 3 de error/reintento** | Firefox headless, build de Vue, 1440×900 y 390×844; rutas y capturas abajo |
@@ -40,7 +40,7 @@ Medición con coverage.py 7.16.1, `--branch --source=app`, sobre todo `backend/a
 | Ramas ejecutadas | **175 / 212 = 82,55 %** |
 | Combinación líneas + ramas de coverage.py | **89,80 %** |
 
-Las 198 pruebas son un conteo, no un porcentaje de cobertura. `main.py` alcanzó 96 % y `worker.py` 44 % en pytest; el avance real de Zeebe se comprobó aparte. Sin `VOCALIS_TEST_MYSQL_ADMIN_URL` se omiten **nueve** pruebas MySQL y no deben contarse como aprobadas. Los fixtures crean y eliminan sólo sus bases UUID temporales; el seed destructivo se invoca únicamente en una de esas bases aisladas.
+Las 199 pruebas son un conteo, no un porcentaje de cobertura. Las cifras de cobertura de la tabla corresponden a la medición anterior a la conversión del seed; no se repitió coverage.py tras este cambio. `main.py` alcanzó 96 % y `worker.py` 44 % en aquella medición; el avance real de Zeebe se comprobó aparte. Sin `VOCALIS_TEST_MYSQL_ADMIN_URL` se omiten **diez** pruebas MySQL y no deben contarse como aprobadas. Los fixtures crean y eliminan sólo sus bases UUID temporales; el seed actual no borra tablas ni crea cuentas.
 
 Reproducción desde `backend/`, con un entorno virtual activo y la URL administrativa del laboratorio configurada de forma privada:
 
@@ -66,7 +66,9 @@ python -m pip install -r backend/requirements.txt
 npm ci
 ```
 
-Para usar MySQL canónico ya existente: `docker compose up -d mysql` (o `docker-compose up -d mysql`). Configurar `VOCALIS_TEST_MYSQL_ADMIN_URL` mediante una entrada privada, apuntando a `mysql`, con permisos para crear/borrar bases temporales. El validador **no usa `vocalis_db` como destino**, no llama al seed y no modifica sus tablas. No cambiar las credenciales de un volumen ya inicializado mediante variables de arranque.
+Para inicializar una BD UUID nueva sin tocar datos existentes, usar `VOCALIS_SETUP_MYSQL_ADMIN_URL` de forma privada y ejecutar `./setup.sh --isolated` desde la raíz. El script crea tablas desde los modelos, aplica Alembic y ejecuta el seed no destructivo de preguntas. Guarda URL y secretos en un directorio privado de `/tmp`; no inicia contenedores, API ni frontend. Para un recorrido integrado usar un broker Zeebe exclusivo según la sección siguiente, evitando correlaciones entre bases con IDs repetidos. La revisión inicial Alembic sigue pendiente.
+
+Para usar MySQL canónico ya existente: `docker compose up -d mysql` (o `docker-compose up -d mysql`). Configurar `VOCALIS_TEST_MYSQL_ADMIN_URL` mediante una entrada privada, apuntando a `mysql`, con permisos para crear/borrar bases temporales. El validador **no usa `vocalis_db` como destino**, carga las preguntas en su BD UUID y no modifica las tablas de desarrollo. No cambiar las credenciales de un volumen ya inicializado mediante variables de arranque.
 
 Para un laboratorio completamente nuevo, con secreto y volumen propios:
 
@@ -114,7 +116,7 @@ El script:
 
 1. Crea `vocalis_demo_<uuid>`; no acepta una BD existente como destino.
 2. Inicializa `Base.metadata.create_all` porque las revisiones existentes no constituyen una migración inicial completa; ejecuta después `alembic upgrade head`. Las revisiones son `20260922_eval_unique` → `20260922_registro_contexto` → `20260924_bpm_outbox`.
-3. Inserta sólo las 44 preguntas desde `app.seed.PREGUNTAS`, con IDs/orden 1–44, sin llamar a `seed_data()` ni borrar tablas.
+3. Inserta sólo las 44 preguntas desde `app.seed.PREGUNTAS`, con órdenes 1–44; no borra tablas ni crea cuentas.
 4. Genera `JWT_SECRET` y `ORIENTADOR_REGISTRATION_CODE` aleatorios. Exporta explícitamente `DATABASE_URL` y `ZEEBE_GATEWAY` al servidor. El código privado se entrega sólo al registro de orientadores, nunca mediante `VITE_*`.
 5. Espera la topología y despliega el BPMN original mediante `ZeebeClient.deploy_resource`. No basta con copiar el archivo al contenedor. En pyzeebe instalado el método es `deploy_resource`, no `deploy_process`.
 6. Inicia Uvicorn en un puerto libre y ejecuta los recorridos HTTP. Detiene/reinicia únicamente el contenedor con etiqueta `vocalis.validation=true` y puerto coincidente.
@@ -212,10 +214,11 @@ Para cada tarea: éxito sin ayuda / con ayuda / no completada; tiempo inicio-fin
 
 Artefactos locales temporales, con cuentas y variables privadas separadas de los resultados; no publicar `environment.json`, `accounts.json` ni credenciales.
 
-- Suite y cobertura: `/tmp/vocalis-stage2-coverage.json`; **198 aprobadas**, incluidas **nueve MySQL**, cobertura combinada **89,80 %**.
+- Suite actual: **199 aprobadas**, incluidas **diez MySQL**. Cobertura histórica: `/tmp/vocalis-stage2-coverage.json`, **89,80 %** combinado antes del cambio de seed; no se reestimó.
+- Nueva instalación `setup.sh --isolated`: MySQL UUID con 44 preguntas, 0 usuarios/cursos y revisión `20260924_bpm_outbox`, después limpiada. No se inició API/Zeebe en esta nueva BD; la integración completa corresponde a la demo anterior.
 - Demo MySQL/Zeebe sin recarga: `/tmp/vocalis-demo-58l1stz4/checks.json`; **26/26**. El broker de validación usó un directorio de datos en `/tmp` para sobrevivir al reinicio. El validador conservó temporalmente su BD UUID mediante `--keep-db` para navegador y carga; después se eliminó sólo esa BD y se retiró el broker temporal sin borrar volúmenes.
 - Firefox 156.0.1: `/tmp/vocalis-browser-stage2-20260927/checks.json` y capturas PNG. Se visitaron `/auth`, `/estudiante/dashboard`, `/estudiante/evaluacion`, `/estudiante/reporte`, `/orientador/dashboard` y `/orientador/estudiante/:studentId/reporte` en **1440×900** y **390×844**. Se comprobaron registro/login/logout de ambos roles, estado vacío y 404 de estudiante, guardado parcial, salida/reingreso, 44 respuestas, reporte propio, bitácora, filtro y reporte autorizado del orientador, ausencia de desbordamiento horizontal y etiquetas del radar. Además se interceptó la red para verificar carga, error visible, botón Reintentar y recuperación del panel orientador. Las capturas usan datos sintéticos.
 - Carga: `/tmp/vocalis-latency-stage2-30-after.json`. Máquina local AMD Ryzen 5 5600G (6 núcleos/12 hilos), 15 GiB RAM, Python 3.14.7, MySQL 8.0.46 en Docker, Zeebe 8.6.7 con límite de 2 GiB, Uvicorn normal y cliente en el mismo host. **30/30 recorridos, 1500 peticiones, cero errores, 9,398 s de duración, 159,6 peticiones/s.** p95 por operación: registro 1216,39 ms, login 706,77 ms, guardar 344,22 ms, reanudar 427,75 ms, enviar 423,45 ms, reporte 166,90 ms y estado 246,13 ms; máximo observado 1275,64 ms. Carga cerrada de 30 usuarios, sin tiempo de espera entre peticiones, timeout de 30 s, sin tests/build simultáneos. El script no mide duración de un recorrido completo, renderizado ni tiempo hasta `reporte_listo`.
 - Corridas iniciales diagnósticas: `/tmp/vocalis-latency-stage2-30.json` y `/tmp/vocalis-latency-stage2-30-diagnostic.json`. Fallaron por conflictos MySQL de registro/primer guardado a alta concurrencia. El registro ahora libera el loop durante bcrypt y reintenta conflictos acotadamente; el guardado parcial reintenta deadlocks MySQL y devuelve 503 controlado si se agotan los intentos. Se añadieron pruebas de esos casos y una prueba opcional MySQL de registros concurrentes. Una corrida final exitosa no demuestra fiabilidad bajo cargas o duraciones distintas.
 
-**Pendiente:** cinco sesiones de usabilidad con personas reales; revisión visual humana fuera del navegador headless, navegadores adicionales y despliegue completo de la imagen backend/Compose; tres corridas repetidas de carga en un entorno representativo; conciliación de ventanas extremas de recuperación BPM y asignación autorizada de cursos sin orientador cuando hay varios. Se conservan los permisos por `curso.orientador_id`. No se ejecutó seed destructivo sobre la BD de desarrollo, no se borraron volúmenes ajenos y no se creó release.
+**Pendiente:** cinco sesiones de usabilidad con personas reales; revisión visual humana fuera del navegador headless, navegadores adicionales y despliegue completo de la imagen backend/Compose; tres corridas repetidas de carga en un entorno representativo; conciliación de ventanas extremas de recuperación BPM y asignación autorizada de cursos sin orientador cuando hay varios. Se conservan los permisos por `curso.orientador_id`. El seed actual sólo carga preguntas en una tabla vacía; no se ejecutó sobre la BD de desarrollo, no se borraron volúmenes ajenos y no se creó release.
