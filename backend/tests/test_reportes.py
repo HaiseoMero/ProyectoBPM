@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.config import settings
 from app.database import Base, get_db
-from app.models import Curso, Estudiante, Evaluacion, Orientador, ReporteVocacional, Usuario
+from app.models import Curso, Estudiante, Evaluacion, Orientador, ReporteVocacional, Usuario, ProcesoBPM
 from app.routers.reporte import router as reporte_router
 from app.routers.orientador import router as orientador_router
 from app.schemas.reporte import ReporteOut
@@ -21,6 +21,23 @@ REPORT_DATE = datetime(2026, 1, 15, 12, 0)
 ENDPOINTS = [('/api/evaluacion/reporte', 1),
              ('/api/evaluacion/reporte/101', 1),
              ('/api/orientador/estudiante/1/reporte', 10)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('path,user', ENDPOINTS + [('/api/evaluacion/reporte/101', 10)])
+@pytest.mark.parametrize('state', ['registro', 'reporte_listo', 'generando_reporte', 'estado_desconocido', None])
+async def test_report_returns_its_students_actual_bpm_state(report_api, path, user, state):
+    client, sessions = report_api
+    async with sessions() as db:
+        # Otro estudiante tiene un estado diferente: no debe contaminar el reporte consultado.
+        db.add(ProcesoBPM(evaluacion_id=2, estado_actual='calculando_ocean'))
+        if state is not None:
+            db.add(ProcesoBPM(evaluacion_id=1, estado_actual=state))
+        await db.commit()
+    response = await client.get(path, headers=headers(user))
+    assert response.status_code == 200
+    assert response.json()['bpm_estado'] == state
+    assert response.json()['studentName'] == 'Estudiante 1'
 
 
 def headers(user_id, **claims):
@@ -209,7 +226,7 @@ async def test_all_three_endpoints_share_exact_report_contract(report_api):
         response = await client.get(path, headers=headers(user))
         assert response.status_code == 200
         body = response.json()
-        assert set(body) == {'studentName', 'evaluatedAt', 'scores', 'dimensions', 'careerAreas'}
+        assert set(body) == {'studentName', 'bpm_estado', 'evaluatedAt', 'scores', 'dimensions', 'careerAreas'}
         assert ReporteOut.model_validate(body).model_dump() == body
         bodies.append(body)
     assert all(body == bodies[0] for body in bodies)

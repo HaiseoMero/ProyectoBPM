@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.schemas.reporte import ReporteOut, DimensionScore, CareerArea
-from app.models import ReporteVocacional, Evaluacion, Estudiante, Usuario, Curso, Orientador
+from app.models import ReporteVocacional, Evaluacion, Estudiante, Usuario, Curso, Orientador, ProcesoBPM
 from app.utils.dependencies import require_estudiante, get_current_user
 from datetime import datetime
 
@@ -114,7 +114,7 @@ def get_career_areas(scores: dict) -> list[CareerArea]:
             return [area]
     return []
 
-def build_reporte_out(reporte: ReporteVocacional, student_name: str | None) -> ReporteOut:
+def build_reporte_out(reporte: ReporteVocacional, student_name: str | None, bpm_estado: str | None = None) -> ReporteOut:
     scores = reporte.scores_json
     dimensions = []
     for k, v in scores.items():
@@ -134,6 +134,7 @@ def build_reporte_out(reporte: ReporteVocacional, student_name: str | None) -> R
     
     return ReporteOut(
         studentName=student_name,
+        bpm_estado=bpm_estado,
         evaluatedAt=dt_str,
         scores=scores,
         dimensions=dimensions,
@@ -143,21 +144,23 @@ def build_reporte_out(reporte: ReporteVocacional, student_name: str | None) -> R
 @router.get("/reporte", response_model=ReporteOut)
 async def get_my_report(estudiante: Estudiante = Depends(require_estudiante), db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Evaluacion).options(selectinload(Evaluacion.reporte)).where(Evaluacion.estudiante_id == estudiante.id).order_by(Evaluacion.id.desc())
+        select(Evaluacion).options(selectinload(Evaluacion.reporte), selectinload(Evaluacion.proceso_bpm)).where(Evaluacion.estudiante_id == estudiante.id).order_by(Evaluacion.id.desc())
     )
     evaluacion = result.scalars().first()
     if not evaluacion or not evaluacion.reporte:
         raise HTTPException(status_code=404, detail="Reporte no encontrado")
         
     rep = evaluacion.reporte[0] if isinstance(evaluacion.reporte, list) else evaluacion.reporte
-    return build_reporte_out(rep, estudiante.nombre_completo)
+    return build_reporte_out(rep, estudiante.nombre_completo,
+                             evaluacion.proceso_bpm.estado_actual if evaluacion.proceso_bpm else None)
 
 @router.get("/reporte/{reporte_id}", response_model=ReporteOut)
 async def get_report_by_id(reporte_id: int, current_user: Usuario = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     query = (
-        select(ReporteVocacional, Estudiante.nombre_completo)
+        select(ReporteVocacional, Estudiante.nombre_completo, ProcesoBPM.estado_actual)
         .join(ReporteVocacional.evaluacion)
         .join(Evaluacion.estudiante)
+        .outerjoin(ProcesoBPM, ProcesoBPM.evaluacion_id == Evaluacion.id)
         .where(ReporteVocacional.id == reporte_id)
     )
     if current_user.rol == "estudiante":
@@ -174,5 +177,5 @@ async def get_report_by_id(reporte_id: int, current_user: Usuario = Depends(get_
     if not row:
         raise HTTPException(status_code=404, detail="Reporte no encontrado")
 
-    reporte, student_name = row
-    return build_reporte_out(reporte, student_name)
+    reporte, student_name, bpm_estado = row
+    return build_reporte_out(reporte, student_name, bpm_estado)

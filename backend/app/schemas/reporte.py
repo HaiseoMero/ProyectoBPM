@@ -15,6 +15,7 @@ class CareerArea(BaseModel):
 
 class ReporteOut(BaseModel):
     studentName: str | None = None
+    bpm_estado: str | None = None
     evaluatedAt: str
     scores: dict[str, float]
     dimensions: list[DimensionScore]

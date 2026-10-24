@@ -22,7 +22,27 @@ async def test_student_list_preserves_raw_bpm_state_and_start_date(report_api, s
     assert students[5]['hasReport'] is False
     assert students[1]['lastUpdate'] == '15 de Ene, 2026'
     assert students[4]['lastUpdate'] == 'Desconocido'  # Estudiante aún sin evaluación.
-    assert set(students[1]) == {'id', 'name', 'email', 'course', 'lastUpdate', 'bpm_estado', 'hasReport'}
+    assert students[1]['estado_evaluacion'] == 'completada'
+    assert students[4]['estado_evaluacion'] is None
+    assert set(students[1]) == {'id', 'name', 'email', 'course', 'lastUpdate', 'bpm_estado', 'estado_evaluacion', 'hasReport'}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('bpm_state', [None, 'registro', 'desconocido'])
+async def test_partial_evaluation_exposes_its_state_independently_of_bpm(report_api, bpm_state):
+    client, sessions = report_api
+    async with sessions() as db:
+        (await db.get(Evaluacion, 5)).estado = 'en_progreso'
+        if bpm_state is not None:
+            db.add(ProcesoBPM(evaluacion_id=5, estado_actual=bpm_state))
+        await db.commit()
+    response = await client.get('/api/orientador/estudiantes', headers=headers(10))
+    assert response.status_code == 200
+    students = {student['id']: student for student in response.json()}
+    assert students[5]['estado_evaluacion'] == 'en_progreso'
+    assert students[5]['hasReport'] is False
+    assert students[5]['bpm_estado'] == bpm_state
+    assert students[4]['estado_evaluacion'] is None
 
 
 @pytest.mark.asyncio
