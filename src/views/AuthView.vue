@@ -4,10 +4,10 @@
     <div class="auth-bg-glow auth-bg-glow--2"></div>
 
     <router-link to="/" class="auth-back-btn">
-      <span class="btn__arrow">←</span> Volver al inicio
+      <span class="btn__arrow" aria-hidden="true">←</span> Volver al inicio
     </router-link>
 
-    <div class="auth-container">
+    <main class="auth-container">
       <div class="auth-box">
         <div class="auth-logo">
           <span class="auth-logo-icon">◈</span>
@@ -17,28 +17,31 @@
         <div class="section__eyebrow">
           {{ isLogin ? 'Control de acceso' : 'Registro de nuevos usuarios' }}
         </div>
-        <h2 class="auth-title">
+        <h1 class="auth-title">
           {{ isLogin ? 'Bienvenido de vuelta' : 'Crea tu cuenta' }}
-        </h2>
+        </h1>
         <p class="auth-sub">
           {{ isLogin ? 'Ingresa tus credenciales para acceder de forma segura.' : 'Únete a la plataforma para descubrir o guiar rutas vocacionales.' }}
         </p>
 
-        <div v-if="errorMessage" class="auth-alert auth-alert--error">
+        <div v-if="errorMessage" class="auth-alert auth-alert--error" role="alert">
           <p class="auth-alert__text">{{ errorMessage }}</p>
         </div>
 
-        <div v-if="successMessage" class="auth-alert auth-alert--success">
+        <div v-if="successMessage" class="auth-alert auth-alert--success" role="status">
           <p class="auth-alert__text">{{ successMessage }}</p>
         </div>
 
-        <form class="auth-form" @submit.prevent="handleSubmit">
+        <form class="auth-form" :aria-busy="loading" @submit.prevent="handleSubmit">
           
-          <div v-if="!isLogin" class="role-selector">
+          <fieldset v-if="!isLogin" class="role-fieldset" :disabled="loading">
+            <legend>Tipo de cuenta</legend>
+            <div class="role-selector">
             <button 
               type="button" 
               class="role-btn" 
               :class="{ 'role-btn--active': form.role === 'estudiante' }"
+              :aria-pressed="form.role === 'estudiante'"
               @click="setRole('estudiante')"
             >
               Estudiante
@@ -47,14 +50,20 @@
               type="button" 
               class="role-btn" 
               :class="{ 'role-btn--active': form.role === 'orientador' }"
+              :aria-pressed="form.role === 'orientador'"
               @click="setRole('orientador')"
             >
               Orientador Escolar
             </button>
-          </div>
+            </div>
+          </fieldset>
 
           <div v-if="!isLogin" class="input-group">
+            <label for="nombre-completo">Nombre completo</label>
             <input
+              id="nombre-completo"
+              name="nombre_completo"
+              autocomplete="name"
               v-model="form.name"
               class="register__input"
               type="text"
@@ -66,12 +75,15 @@
           <div v-if="!isLogin && form.role === 'estudiante'" class="input-group">
             <label for="fecha-nacimiento">Fecha de nacimiento</label>
             <input id="fecha-nacimiento" v-model="form.fecha_nacimiento"
-              class="register__input" type="date" required />
+              class="register__input" name="fecha_nacimiento" autocomplete="bday" type="date" required />
           </div>
 
           <div v-if="!isLogin && form.role === 'estudiante'" class="form-row form-row--curso">
             <div class="input-group">
+              <label for="nivel">Nivel</label>
               <select 
+                id="nivel"
+                name="nivel"
                 v-model="form.nivel" 
                 class="register__input register__select" 
                 :required="!isLogin && form.role === 'estudiante'"
@@ -84,7 +96,12 @@
               </select>
             </div>
             <div class="input-group input-group--letra">
+              <label for="letra">Letra</label>
               <input 
+                id="letra"
+                name="letra"
+                autocapitalize="characters"
+                :spellcheck="false"
                 v-model="form.letra" 
                 class="register__input register__input--letra" 
                 type="text" 
@@ -99,7 +116,11 @@
           </div>
           
           <div v-if="!isLogin" class="input-group">
+            <label for="establecimiento">Establecimiento educacional</label>
             <input
+              id="establecimiento"
+              name="establecimiento"
+              autocomplete="organization"
               v-model="form.establecimiento"
               class="register__input"
               type="text"
@@ -110,7 +131,10 @@
           </div>
 
           <div v-if="!isLogin && form.role === 'orientador'" class="input-group">
+            <label for="departamento">Departamento o unidad</label>
             <input
+              id="departamento"
+              name="departamento"
               v-model="form.departamento"
               class="register__input"
               type="text"
@@ -120,13 +144,21 @@
           </div>
 
           <div v-if="!isLogin && form.role === 'orientador'" class="input-group">
-            <input v-model="form.codigo_verificacion" class="register__input"
+            <label for="codigo-verificacion">Código privado de verificación</label>
+            <input id="codigo-verificacion" name="codigo_verificacion" v-model="form.codigo_verificacion" class="register__input"
               type="password" autocomplete="off" placeholder="Código privado de verificación"
               aria-label="Código privado de verificación" required />
           </div>
 
           <div class="input-group">
+            <label for="correo">Correo electrónico</label>
             <input
+              id="correo"
+              name="email"
+              :autocomplete="isLogin ? 'username' : 'email'"
+              inputmode="email"
+              autocapitalize="none"
+              :spellcheck="false"
               v-model="form.email"
               class="register__input"
               type="email"
@@ -136,7 +168,12 @@
           </div>
           
           <div class="input-group">
+            <label for="contrasena">Contraseña</label>
             <input
+              id="contrasena"
+              name="password"
+              :autocomplete="isLogin ? 'current-password' : 'new-password'"
+              minlength="6"
               v-model="form.password"
               class="register__input"
               type="password"
@@ -147,18 +184,18 @@
 
           <button type="submit" class="btn btn--primary btn--full" :disabled="loading">
             {{ loading ? 'Procesando...' : (isLogin ? 'Iniciar Sesión' : 'Registrar mi cuenta gratis') }}
-            <span v-if="!loading" class="btn__arrow">→</span>
+            <span v-if="!loading" class="btn__arrow" aria-hidden="true">→</span>
           </button>
         </form>
 
         <p class="auth-toggle-text">
           {{ isLogin ? '¿No tienes una cuenta académica?' : '¿Ya te encuentras registrado?' }}
-          <a href="#" @click.prevent="toggleMode">
+          <button type="button" class="auth-toggle-btn" :disabled="loading" @click="toggleMode">
             {{ isLogin ? 'Regístrate aquí' : 'Inicia sesión aquí' }}
-          </a>
+          </button>
         </p>
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
@@ -216,6 +253,7 @@ function setRole(newRole) {
 
 // Procesar el envío del formulario
 async function handleSubmit() {
+  if (loading.value) return
   errorMessage.value = ''
   successMessage.value = ''
 
@@ -263,15 +301,18 @@ async function handleSubmit() {
   --r-card:     16px;
 
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--c-bg);
   color: var(--c-text);
   font-family: 'Inter', sans-serif;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 24px;
   position: relative;
-  overflow: hidden;
-  padding: 40px 24px;
+  overflow: clip;
+  padding: 32px var(--page-gutter);
 }
 
 /* Sistema de Glow Backgrounds exactos del Home */
@@ -295,8 +336,8 @@ async function handleSubmit() {
 
 /* Botón flotante para regresar */
 .auth-back-btn {
-  position: absolute;
-  top: 32px; left: 32px;
+  position: relative;
+  align-self: flex-start;
   color: var(--c-muted);
   text-decoration: none;
   font-size: 0.9rem;
@@ -315,6 +356,8 @@ async function handleSubmit() {
   z-index: 1;
   width: 100%;
   max-width: 460px;
+  margin: auto;
+  min-width: 0;
 }
 .auth-box {
   background: var(--c-surface);
@@ -363,6 +406,8 @@ async function handleSubmit() {
 }
 
 /* Selector dinámico de Roles */
+.role-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.role-fieldset legend { margin-bottom: 8px; }
 .role-selector {
   display: flex;
   gap: 10px;
@@ -370,6 +415,7 @@ async function handleSubmit() {
 }
 .role-btn {
   flex: 1;
+  min-width: 0;
   padding: 11px;
   border-radius: 12px;
   border: 1px solid var(--c-border);
@@ -389,13 +435,14 @@ async function handleSubmit() {
 }
 
 /* Elementos de entrada de texto validados */
-.input-group { width: 100%; }
+.input-group { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.input-group label, .role-fieldset legend { font-size: 0.85rem; font-weight: 600; color: var(--c-text); }
 .form-row {
   display: flex;
   gap: 12px;
 }
 .form-row--curso .input-group:first-child { flex: 1; }
-.form-row--curso .input-group--letra { flex: 0 0 68px; }
+.form-row--curso .input-group--letra { flex: 0 0 72px; }
 
 .register__input--letra {
   text-align: center;
@@ -418,10 +465,11 @@ async function handleSubmit() {
   border-radius: 12px;
   padding: 16px 20px;
   box-sizing: border-box;
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: var(--c-text);
   font-family: 'Inter', sans-serif;
   width: 100%;
+  min-height: 48px;
   transition: all 0.2s;
   outline: none;
 }
@@ -496,12 +544,20 @@ async function handleSubmit() {
   font-size: 0.85rem;
   color: var(--c-muted);
 }
-.auth-toggle-text a {
+.auth-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 0;
+  padding: 8px;
+  background: transparent;
   color: var(--c-primary);
   text-decoration: none;
   font-weight: 600;
+  cursor: pointer;
 }
-.auth-toggle-text a:hover { text-decoration: underline; }
+.auth-toggle-btn:hover { text-decoration: underline; }
 
 .section__eyebrow {
   font-size: 0.72rem;
@@ -513,8 +569,24 @@ async function handleSubmit() {
 }
 
 /* Adaptación responsiva */
-@media (max-width: 480px) {
-  .auth-box { padding: 32px 20px; }
-  .auth-back-btn { position: relative; top: 0; left: 0; margin-bottom: 24px; }
+@media (max-width: 900px) {
+  .auth-bg-glow { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-back-btn, .role-btn, .register__input, .btn, .btn__arrow { transition: none; }
+}
+@media (max-width: 600px) {
+  .auth-page { padding-top: 16px; padding-bottom: max(24px, env(safe-area-inset-bottom)); gap: 16px; }
+  .auth-container { margin: 0 auto; }
+  .auth-box { padding: 28px 20px; border-radius: 20px; }
+  .auth-title { font-size: clamp(1.4rem, 6vw, 1.8rem); }
+  .auth-logo { margin-bottom: 16px; }
+  .auth-sub { margin-bottom: 24px; }
+  .register__input { padding: 14px 12px; }
+  .register__select { padding-right: 32px; }
+  .form-row { gap: 10px; }
+  .role-btn { font-size: 0.85rem; }
+  .btn--full { border-radius: 12px; padding: 14px 16px; }
+  .auth-toggle-text { margin-top: 16px; }
 }
 </style>

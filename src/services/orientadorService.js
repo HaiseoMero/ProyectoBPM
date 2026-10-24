@@ -13,4 +13,14 @@ async function getStudentReport(studentId) {
   return data
 }
 
-export default { getStudents, getStudentReport }
+async function getUnassignedCourses() {
+  const { data } = await http.get('/orientador/cursos/sin-asignar')
+  return data
+}
+
+async function assignCourse(courseId) {
+  const { data } = await http.post(`/orientador/cursos/${encodeURIComponent(courseId)}/asignar`)
+  return data
+}
+
+export default { getStudents, getStudentReport, getUnassignedCourses, assignCourse }

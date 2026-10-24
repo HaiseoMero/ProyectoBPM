@@ -10,7 +10,8 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   scrollBehavior(to) {
     if (to.hash) {
-      return { el: to.hash, behavior: 'smooth' }
+      const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+      return { el: to.hash, behavior }
     }
     return { top: 0 }
   },
@@ -24,6 +25,16 @@ const router = createRouter({
       path: '/auth',
       name: 'authentication',
       component: AuthView
+    },
+    {
+      path: '/como-funciona',
+      name: 'como-funciona',
+      component: () => import('../views/HowItWorksView.vue')
+    },
+    {
+      path: '/el-test',
+      name: 'el-test',
+      component: () => import('../views/TestInfoView.vue')
     },
     {
       path: '/estudiante/dashboard',
@@ -75,7 +86,7 @@ router.beforeEach((to, from, next) => {
         localStorage.removeItem('vocalis_token')
         userRole = null
       }
-    } catch (e) {
+    } catch {
       localStorage.removeItem('vocalis_token')
     }
   }

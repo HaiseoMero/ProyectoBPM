@@ -1,44 +1,45 @@
 <template>
   <div class="landing">
 
-    <nav class="nav">
+    <nav class="nav" aria-label="Navegación de inicio">
       <div class="nav__logo">
         <span class="nav__logo-icon">◈</span>
         <span class="nav__logo-text">Vócalis</span>
       </div>
       <div class="nav__links">
-        <a href="#como-funciona">Cómo funciona</a>
-        <a href="#dimensiones">El test</a>
+        <router-link to="/como-funciona">Cómo funciona</router-link>
+        <router-link to="/el-test">El test</router-link>
         <router-link to="/auth" class="nav__cta">Comenzar gratis</router-link>
       </div>
     </nav>
 
+    <main>
     <section class="hero">
-      <div class="hero__bg-glow hero__bg-glow--1"></div>
-      <div class="hero__bg-glow hero__bg-glow--2"></div>
+      <div class="hero__bg-glow hero__bg-glow--1" aria-hidden="true"></div>
+      <div class="hero__bg-glow hero__bg-glow--2" aria-hidden="true"></div>
 
       <div class="hero__content">
         <div class="hero__badge">
-          <span class="badge__dot"></span>
-          Test científico · Modelo Big Five OCEAN
+          <span class="badge__dot" aria-hidden="true"></span>
+          Autoconocimiento · Modelo Big Five OCEAN
         </div>
 
         <h1 class="hero__title">
-          Descubre quién<br />
-          <em>realmente</em> eres.
+          Conoce más<br />
+          <em>sobre</em> ti.
         </h1>
 
         <p class="hero__sub">
-          Un test de personalidad validado científicamente que conecta tu perfil
-          con las carreras donde puedes brillar de verdad.
+          Explora tus rasgos de personalidad con el BFI-44 y comparte tus resultados
+          con tu orientador. Un apoyo para reflexionar sobre tu futuro, junto con tus intereses y experiencias.
         </p>
 
         <div class="hero__actions">
           <a href="#register" class="btn btn--primary">
             Descubrir mi perfil
-            <span class="btn__arrow">→</span>
+            <span class="btn__arrow" aria-hidden="true">→</span>
           </a>
-          <a href="#como-funciona" class="btn btn--ghost">Ver cómo funciona</a>
+          <router-link to="/como-funciona" class="btn btn--ghost">Ver cómo funciona</router-link>
         </div>
 
         <div class="hero__stats">
@@ -59,18 +60,19 @@
         </div>
       </div>
 
-      <div class="hero__radar-wrap">
+      <div ref="radarContainer" class="hero__radar-wrap">
         <div class="radar__label radar__label--top">Apertura</div>
         <div class="radar__label radar__label--tr">Responsabilidad</div>
         <div class="radar__label radar__label--br">Extraversión</div>
         <div class="radar__label radar__label--bl">Amabilidad</div>
         <div class="radar__label radar__label--tl">Neuroticismo</div>
-        <svg class="radar__svg" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+        <svg class="radar__svg" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="landing-radar-title">
+          <title id="landing-radar-title">Ejemplo de las cinco dimensiones OCEAN</title>
           <polygon v-for="(points, index) in radarGridPoints" :key="index"
                    class="radar__grid" :points="points" />
           <line v-for="(point, index) in radarAxes" :key="index" class="radar__axis"
                 :x1="CENTER" :y1="CENTER" :x2="point.x" :y2="point.y" />
-          <polygon class="radar__data" ref="radarData" :points="radarPoints" />
+          <polygon class="radar__data" :points="radarPoints" />
           <circle
             v-for="(pt, i) in radarDots"
             :key="i"
@@ -85,7 +87,7 @@
 
     <section class="steps" id="como-funciona">
       <div class="section__eyebrow">El proceso</div>
-      <h2 class="section__title">Tres pasos, una respuesta.</h2>
+      <h2 class="section__title">Tres pasos para conocerte mejor.</h2>
 
       <div class="steps__grid">
         <div class="step-card" v-for="step in steps" :key="step.n">
@@ -98,11 +100,11 @@
 
     <section class="ocean" id="dimensiones">
       <div class="ocean__left">
-        <div class="section__eyebrow">El modelo científico</div>
+        <div class="section__eyebrow">Las dimensiones de personalidad</div>
         <h2 class="section__title">El Big Five<br />OCEAN.</h2>
         <p class="ocean__intro">
-          El modelo de personalidad más respaldado por la psicología moderna,
-          con décadas de investigación y validación en más de 50 países.
+          El modelo Big Five describe cinco dimensiones de personalidad. En Vócalis,
+          estos resultados aportan una perspectiva para conversar sobre cómo te describes y lo que te interesa.
         </p>
       </div>
       <div class="ocean__cards">
@@ -123,7 +125,7 @@
 
     <section class="report-preview">
       <div class="section__eyebrow">Tu reporte</div>
-      <h2 class="section__title">No solo un número.<br />Una hoja de ruta.</h2>
+      <h2 class="section__title">Tus resultados.<br />Un punto de partida.</h2>
       <div class="report-preview__grid">
         <div class="report-card" v-for="card in reportFeatures" :key="card.title">
           <h4 class="report-card__title">{{ card.title }}</h4>
@@ -138,17 +140,28 @@
         <div class="section__eyebrow">Empieza hoy</div>
         <h2 class="register__title">Tu perfil te está esperando.</h2>
         <p class="register__sub">
-          Gratis, sin tarjeta de crédito. Solo tú y 44 preguntas que pueden cambiar tu rumbo.
+          Crea tu cuenta y responde 44 afirmaciones para empezar a reflexionar. Vócalis complementa el acompañamiento de tu orientador.
         </p>
         <form class="register__form" @submit.prevent="handleRegister">
+          <label for="landing-name">Tu nombre</label>
           <input
+            id="landing-name"
+            name="nombre"
+            autocomplete="name"
             v-model="form.name"
             class="register__input"
             type="text"
             placeholder="Tu nombre"
             required
           />
+          <label for="landing-email">Correo electrónico</label>
           <input
+            id="landing-email"
+            name="email"
+            autocomplete="email"
+            inputmode="email"
+            autocapitalize="none"
+            :spellcheck="false"
             v-model="form.email"
             class="register__input"
             type="email"
@@ -157,7 +170,7 @@
           />
           <button type="submit" class="btn btn--primary btn--full">
             Crear mi cuenta gratis
-            <span class="btn__arrow">→</span>
+            <span class="btn__arrow" aria-hidden="true">→</span>
           </button>
         </form>
         <p class="register__login">
@@ -166,6 +179,7 @@
         </p>
       </div>
     </section>
+    </main>
 
     <footer class="footer">
       <div class="footer__logo">
@@ -188,21 +202,24 @@ defineOptions({ name: 'HomeView' })
 
 // ── Radar animation ──────────────────────────────────────────────────────────
 const AXES = [
-  { angle: -90 },   // top (Apertura)
-  { angle: -18 },   // top-right (Responsabilidad)
-  { angle: 54  },   // bottom-right (Extraversión)
-  { angle: 126 },   // bottom-left (Amabilidad)
-  { angle: 198 },   // top-left (Neuroticismo)
+  { letter: 'O', angle: -90 },
+  { letter: 'C', angle: -18 },
+  { letter: 'E', angle: 54 },
+  { letter: 'A', angle: 126 },
+  { letter: 'N', angle: 198 },
 ]
 const CENTER = 160
 const MAX_R  = 120
 
-const targetValues  = ref([0.85, 0.70, 0.60, 0.80, 0.45])
-const currentValues = ref([0.0,  0.0,  0.0,  0.0,  0.0 ])
+const exampleValues = [0.85, 0.70, 0.60, 0.80, 0.45]
+const targetValues = ref([...exampleValues])
+const currentValues = ref(exampleValues.map(() => 0))
+const radarContainer = ref(null)
 let animFrame = null
-let phaseTick = 0
-
-function lerp(a, b, t) { return a + (b - a) * t }
+let lastTimestamp = null
+let targetElapsed = 0
+let radarVisible = false
+let observer
 
 function polarToXY(angleDeg, r) {
   const rad = (angleDeg * Math.PI) / 180
@@ -220,20 +237,60 @@ const radarGridPoints = [1, 0.75, 0.5, 0.25].map(scale =>
   }).join(' ')
 )
 
-function tick() {
-  phaseTick++
-  // Slowly morph target every ~180 frames
-  if (phaseTick % 180 === 0) {
-    targetValues.value = targetValues.value.map(() => 0.35 + Math.random() * 0.60)
-  }
-  currentValues.value = currentValues.value.map((v, i) =>
-    lerp(v, targetValues.value[i], 0.02)
-  )
-  animFrame = requestAnimationFrame(tick)
+function stopRadar() {
+  if (animFrame !== null) cancelAnimationFrame(animFrame)
+  animFrame = null
+  lastTimestamp = null
 }
 
-onMounted(() => { animFrame = requestAnimationFrame(tick) })
-onUnmounted(() => { if (animFrame) cancelAnimationFrame(animFrame) })
+function canAnimate() {
+  return radarVisible && !document.hidden
+}
+
+// Conserva el movimiento continuo original y su velocidad en distintas pantallas.
+function animateRadar(timestamp) {
+  animFrame = null
+  if (!canAnimate()) { stopRadar(); return }
+  const elapsed = lastTimestamp === null ? 1000 / 60 : Math.min(timestamp - lastTimestamp, 100)
+  lastTimestamp = timestamp
+  targetElapsed += elapsed
+  if (targetElapsed >= 3000) {
+    targetElapsed %= 3000
+    targetValues.value = targetValues.value.map(() => 0.35 + Math.random() * 0.60)
+  }
+  const blend = 1 - Math.pow(0.98, elapsed / (1000 / 60))
+  currentValues.value = currentValues.value.map((value, index) =>
+    value + (targetValues.value[index] - value) * blend
+  )
+  animFrame = requestAnimationFrame(animateRadar)
+}
+
+function syncRadar() {
+  if (!canAnimate()) {
+    stopRadar()
+    return
+  }
+  if (animFrame === null) animFrame = requestAnimationFrame(animateRadar)
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', syncRadar)
+  if ('IntersectionObserver' in window) {
+    observer = new IntersectionObserver(([entry]) => {
+      radarVisible = entry.isIntersecting
+      syncRadar()
+    }, { threshold: 0.15 })
+    observer.observe(radarContainer.value)
+  } else {
+    radarVisible = true
+    syncRadar()
+  }
+})
+onUnmounted(() => {
+  stopRadar()
+  observer?.disconnect()
+  document.removeEventListener('visibilitychange', syncRadar)
+})
 
 const radarDots = computed(() =>
   AXES.map((ax, i) => polarToXY(ax.angle, currentValues.value[i] * MAX_R))
@@ -249,7 +306,7 @@ const router = useRouter()
 const steps = [
   { n: '01', title: 'Responde el test', desc: 'Contesta 44 afirmaciones simples sobre cómo piensas, sientes y actúas. Sin respuestas incorrectas.' },
   { n: '02', title: 'Conoce tu perfil', desc: 'El sistema calcula tus puntuaciones en las 5 dimensiones OCEAN y genera tu radar de personalidad.' },
-  { n: '03', title: 'Descubre tu ruta', desc: 'Recibe recomendaciones de áreas profesionales y familias de carreras alineadas con tus fortalezas.' },
+  { n: '03', title: 'Reflexiona con tu orientador', desc: 'Revisa tus resultados y explora tus intereses junto con tu orientador. Elegir tu camino requiere también conocer tus habilidades, experiencias y opciones.' },
 ]
 
 const dimensions = [
@@ -261,10 +318,10 @@ const dimensions = [
 ]
 
 const reportFeatures = [
-  { title: 'Gráfico radar OCEAN', desc: 'Visualiza tus cinco dimensiones de un vistazo en un gráfico interactivo.' },
-  { title: 'Texto interpretativo', desc: 'Explicación personalizada de qué significa cada puntaje en tu caso particular.' },
-  { title: 'Áreas profesionales', desc: 'Sugerencias concretas de rubros laborales donde tu perfil tiene mayor afinidad.' },
-  { title: 'Familias de carreras', desc: 'Grupos de carreras ordenados por compatibilidad con tus fortalezas detectadas.' },
+  { title: 'Gráfico radar OCEAN', desc: 'Consulta tus puntajes en las cinco dimensiones de personalidad en un mismo gráfico.' },
+  { title: 'Texto interpretativo', desc: 'Lee descripciones de las tendencias que reflejan tus respuestas para apoyar tu reflexión.' },
+  { title: 'Áreas para explorar', desc: 'Referencias exploratorias del prototipo para investigar y conversar. No son una medida de afinidad profesional.' },
+  { title: 'Acompañamiento del orientador', desc: 'Tu orientador asignado puede consultar tu avance y tus resultados para apoyar el seguimiento.' },
 ]
 
 // ── Form ──────────────────────────────────────────────────────────────────────
@@ -281,12 +338,7 @@ function handleRegister() {
 </script>
 
 <style scoped>
-/* ── Reset & tokens ──────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700;800&display=swap');
-
-*,
-*::before,
-*::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── Tokens de la portada ───────────────────────────────────────────────── */
 
 .landing {
   /* MODO CLARO - Paleta limpia y profesional */
@@ -303,8 +355,8 @@ function handleRegister() {
   font-family: 'Inter', sans-serif;
   background: var(--c-bg);
   color: var(--c-text);
-  overflow-x: hidden;
 }
+.landing section[id] { scroll-margin-top: 100px; }
 
 /* ── Nav ─────────────────────────────────────────────────────────────────── */
 .nav {
@@ -344,6 +396,10 @@ function handleRegister() {
 }
 
 .nav__links a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--c-muted);
   text-decoration: none;
   font-size: 0.875rem;
@@ -368,9 +424,10 @@ function handleRegister() {
 /* ── Hero ────────────────────────────────────────────────────────────────── */
 .hero {
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 120px 48px 80px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   gap: 64px;
   position: relative;
@@ -400,6 +457,7 @@ function handleRegister() {
 .hero__content {
   position: relative;
   z-index: 1;
+  min-width: 0;
 }
 
 .hero__badge {
@@ -473,6 +531,7 @@ function handleRegister() {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .stat__num {
@@ -528,7 +587,6 @@ function handleRegister() {
   stroke: var(--c-primary);
   stroke-width: 2.5;
   stroke-linejoin: round;
-  transition: points 0.05s linear;
 }
 
 .radar__dot {
@@ -630,7 +688,7 @@ function handleRegister() {
 
 .steps__grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
   margin-top: 48px;
 }
@@ -682,7 +740,7 @@ function handleRegister() {
 .ocean {
   padding: 96px 48px;
   display: grid;
-  grid-template-columns: 1fr 1.4fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
   gap: 64px;
   align-items: start;
 }
@@ -725,7 +783,9 @@ function handleRegister() {
   color: var(--accent);
   line-height: 1;
   min-width: 40px;
+  flex-shrink: 0;
 }
+.ocean-card > div { min-width: 0; }
 
 .ocean-card__name {
   font-family: 'Poppins', sans-serif;
@@ -751,7 +811,7 @@ function handleRegister() {
 
 .report-preview__grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 24px;
   margin-top: 48px;
 }
@@ -839,6 +899,7 @@ function handleRegister() {
   flex-direction: column;
   gap: 14px;
 }
+.register__form label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .register__input {
   background: var(--c-bg);
@@ -849,6 +910,7 @@ function handleRegister() {
   color: var(--c-text);
   font-family: 'Inter', sans-serif;
   width: 100%;
+  min-height: 48px;
   transition: border-color 0.2s, box-shadow 0.2s;
   outline: none;
 }
@@ -868,6 +930,10 @@ function handleRegister() {
 }
 
 .register__login a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 4px 8px;
   color: var(--c-primary);
   text-decoration: none;
   font-weight: 600;
@@ -900,9 +966,11 @@ function handleRegister() {
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
+  .landing section[id] { scroll-margin-top: 140px; }
   .hero {
     grid-template-columns: 1fr;
-    padding: 100px 24px 60px;
+    min-height: auto;
+    padding: 40px var(--page-gutter) 48px;
     gap: 48px;
     text-align: center;
   }
@@ -913,34 +981,58 @@ function handleRegister() {
   .hero__actions { justify-content: center; }
   .hero__stats   { justify-content: center; }
 
-  .hero__radar-wrap {
-    order: -1;
-  }
+  .hero__radar-wrap { order: -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 360px; margin: 0 auto; }
+  .radar__svg { grid-row: 1; grid-column: 1 / -1; width: 100%; }
+  .radar__label { position: static; transform: none; white-space: normal; overflow-wrap: anywhere; text-align: center; font-size: 0.7rem; }
+  .radar__label--tl { grid-column: 1 / -1; }
+  .register__form label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; text-align: left; font-size: 0.85rem; font-weight: 600; }
+  .hero__bg-glow { display: none; }
+  .radar__svg, .radar__dot { filter: none; }
 
   .steps,
   .ocean,
   .report-preview,
-  .register { padding: 64px 24px; }
+  .register { padding: 48px var(--page-gutter); }
 
   .steps__grid        { grid-template-columns: 1fr; }
   .ocean              { grid-template-columns: 1fr; gap: 40px; }
-  .report-preview__grid { grid-template-columns: repeat(2, 1fr); }
+  .report-preview__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-  .nav { padding: 16px 24px; }
-  .nav__links a:not(.nav__cta) { display: none; }
+  .nav { position: sticky; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 12px var(--page-gutter); background: var(--c-surface); backdrop-filter: none; }
+  .nav__logo { min-width: 0; }
+  .nav__links { display: contents; }
+  .nav__links a { font-size: 0.8rem; text-align: center; }
+  .nav__links a:first-child { grid-row: 2; grid-column: 1; }
+  .nav__links a:nth-child(2) { grid-row: 2; grid-column: 2; }
+  .nav__cta { grid-row: 1; grid-column: 2; padding: 8px 12px; }
+  .register__input { font-size: 16px; }
 
   .register__box { padding: 36px 24px; }
-  .footer { flex-direction: column; gap: 12px; text-align: center; }
+  .footer { padding: 24px var(--page-gutter); flex-direction: column; gap: 12px; text-align: center; }
 }
 
 @media (max-width: 480px) {
+  .hero__title { font-size: clamp(2rem, 9vw, 2.8rem); }
+  .hero__badge { padding: 8px 12px; font-size: 0.7rem; border-radius: 12px; }
+  .hero__actions { flex-direction: column; }
+  .hero__actions .btn { width: 100%; }
+  .hero__stats { gap: 12px; }
+  .stat__label { font-size: 0.65rem; letter-spacing: 0.02em; }
+  .step-card, .report-card, .register__box { padding: 24px 20px; }
+  .ocean-card { padding: 16px; gap: 12px; }
+  .steps__grid, .report-preview__grid { margin-top: 24px; gap: 16px; }
   .report-preview__grid { grid-template-columns: 1fr; }
+}
+@media (max-height: 500px) and (max-width: 900px) {
+  .nav { position: static; }
+  .landing section[id] { scroll-margin-top: 24px; }
 }
 
 /* ── Reduced motion ──────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .badge__dot       { animation: none; }
   .btn              { transition: none; }
+  .btn__arrow, .nav__links a { transition: none; }
   .step-card,
   .ocean-card,
   .report-card      { transition: none; }

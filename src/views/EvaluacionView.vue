@@ -4,7 +4,7 @@
       
       <div class="top-navigation">
         <router-link to="/estudiante/dashboard" class="back-btn">
-          <span class="btn__arrow">←</span> Volver al Dashboard
+          <span class="btn__arrow" aria-hidden="true">←</span> Volver a mi panel
         </router-link>
         <div class="brand">
           <span class="brand-icon">◈</span>
@@ -32,7 +32,7 @@
         <div class="test-title-container">
           <h1 class="test-title">Inventario Big Five (BFI-44)</h1>
           <div class="test-instructions-box">
-            <span class="instructions-icon">✨</span>
+            <span class="instructions-icon" aria-hidden="true">✨</span>
             <p>
               Vas a responder 44 afirmaciones sobre cómo eres normalmente. No hay respuestas correctas o incorrectas. Responde con tu primera impresión — no lo pienses demasiado, ni te compares con lo que crees que "deberías" ser. <strong>Podrás enviar el cuestionario completo una sola vez</strong>; tus respuestas parciales se guardan para que puedas continuar después. Los resultados describen dimensiones de personalidad y no determinan una carrera.
             </p>
@@ -44,7 +44,8 @@
             Bloque <strong>{{ currentPage + 1 }}</strong> de <strong>{{ totalPages }}</strong> 
             <span class="progress-count">({{ answeredCount }} de 44 respondidas)</span>
           </div>
-          <div class="progress-bar-bg">
+          <div class="progress-bar-bg" role="progressbar" aria-label="Afirmaciones respondidas"
+               :aria-valuenow="answeredCount" :aria-valuemax="questions.length || 44" :aria-valuemin="0">
             <div class="progress-bar-fill" :style="{ width: percentProgress + '%' }"></div>
           </div>
         </div>
@@ -61,40 +62,51 @@
           <router-link to="/estudiante/reporte" class="btn btn--primary">Ver reporte</router-link>
         </div>
         <template v-else>
-        <div role="status">
-          <p>{{ savingCount ? 'Guardando respuestas…' : (hasUnsavedAnswers ? 'Hay respuestas sin guardar. Tus selecciones se conservan en esta página.' : 'Todas las respuestas seleccionadas están guardadas.') }}</p>
-          <button v-if="hasUnsavedAnswers && !savingCount" class="btn btn--ghost" @click="retrySaving">Reintentar guardado</button>
+        <div ref="questionnaireStatus" class="questionnaire-status">
+          <div class="block-heading">
+            <h2 id="questionnaire-block" tabindex="-1">Bloque {{ currentPage + 1 }} de {{ totalPages }}</h2>
+            <span>{{ answeredCount }} de {{ questions.length }} respondidas</span>
+          </div>
+          <div class="save-status" :class="{ 'save-status--pending': hasUnsavedAnswers && !savingCount }">
+            <p role="status" aria-live="polite" aria-atomic="true">{{ saveStatusText }}</p>
+            <button v-if="hasUnsavedAnswers && !savingCount" type="button" class="btn btn--ghost" @click="retrySaving">Reintentar guardado</button>
+          </div>
         </div>
         <div class="likert-table-wrapper">
           <table class="likert-table">
+            <caption>Para cada afirmación: «Me considero una persona que…»</caption>
             <thead>
               <tr>
-                <th class="col-question">Afirmación: "Me considero una persona que..."</th>
-                <th class="col-option">Totalmente en Desacuerdo</th>
-                <th class="col-option">En Desacuerdo</th>
-                <th class="col-option">Neutro</th>
-                <th class="col-option">De Acuerdo</th>
-                <th class="col-option">Totalmente de Acuerdo</th>
+                <th class="col-question" scope="col">Afirmación</th>
+                <th v-for="option in likertOptions" :key="option.value" class="col-option" scope="col">{{ option.label }}</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="q in paginatedQuestions" :key="q.id" class="likert-row">
-                <td class="question-text">
-                  <span class="question-number">{{ q.id }}.</span> {{ q.text }}
-                </td>
-                <td v-for="val in 5" :key="val" class="option-cell" @click="selectAnswer(q.id, val)">
-                  <label class="radio-container">
+              <tr v-for="q in paginatedQuestions" :id="'question-' + q.id" :key="q.id" class="likert-row"
+                  :class="{ 'likert-row--invalid': invalidQuestionId === q.id }">
+                <th class="question-text" scope="row">
+                  <span :id="'question-text-' + q.id"><span class="question-number">{{ questionNumber(q.id) }}.</span> {{ q.text }}</span>
+                  <span v-if="invalidQuestionId === q.id" :id="'question-error-' + q.id" class="question-error">Responde esta afirmación para continuar.</span>
+                </th>
+                <td v-for="option in likertOptions" :key="option.value" class="option-cell">
+                  <label class="radio-container"
+                         :class="{ 'radio-container--selected': answers[q.id] === option.value, 'radio-container--disabled': submitting }">
                     <input 
+                      :id="'question-radio-' + q.id + '-' + option.value"
                       type="radio" 
                       :name="'q-' + q.id" 
-                      :value="val" 
-                      :checked="answers[q.id] === val"
+                      :value="option.value"
+                      :checked="answers[q.id] === option.value"
+                      :aria-labelledby="'question-text-' + q.id + ' option-text-' + q.id + '-' + option.value"
+                      :aria-invalid="invalidQuestionId === q.id"
+                      :aria-describedby="invalidQuestionId === q.id ? 'question-error-' + q.id : null"
                       :disabled="submitting"
-                      @change="selectAnswer(q.id, val)"
+                      @change="selectAnswer(q.id, option.value)"
                     />
-                    <span class="custom-radio">
-                      <span class="custom-radio__inner">{{ val }}</span>
+                    <span class="custom-radio" aria-hidden="true">
+                      <span class="custom-radio__inner">{{ option.value }}</span>
                     </span>
+                    <span :id="'option-text-' + q.id + '-' + option.value" class="option-label">{{ option.label }}</span>
                   </label>
                 </td>
               </tr>
@@ -103,19 +115,20 @@
         </div>
 
         <footer class="test-navigation-footer">
+          <p v-if="validationMessage" class="validation-warning" role="alert">
+            {{ validationMessage }}
+          </p>
           <button 
+            type="button"
             @click="prevPage" 
             class="btn btn--ghost" 
-            :disabled="currentPage === 0"
+            :disabled="currentPage === 0 || submitting"
           >
             ← Bloque Anterior
           </button>
           
-          <div v-if="validationMessage" class="validation-warning">
-            {{ validationMessage }}
-          </div>
-
           <button 
+            type="button"
             @click="nextPage" 
             class="btn btn--primary"
             :disabled="submitting"
@@ -131,7 +144,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import evaluacionService from '../services/evaluacionService'
 import { bpmStages, getBpmStatus } from '../utils/bpmStatus'
@@ -191,7 +204,16 @@ onUnmounted(() => window.removeEventListener('beforeunload', warnUnsaved))
 const currentPage = ref(0)
 const itemsPerPage = 10
 const validationMessage = ref('')
+const invalidQuestionId = ref(null)
+const questionnaireStatus = ref(null)
 const submitting = ref(false)
+const likertOptions = [
+  { value: 1, label: 'Totalmente en desacuerdo' },
+  { value: 2, label: 'En desacuerdo' },
+  { value: 3, label: 'Neutro' },
+  { value: 4, label: 'De acuerdo' },
+  { value: 5, label: 'Totalmente de acuerdo' },
+]
 
 // Estado de respuestas: clave es ID de pregunta, valor es puntaje Likert (1 a 5)
 const answers = ref({})
@@ -200,6 +222,12 @@ const savingCount = ref(0)
 let saveQueue = Promise.resolve()
 const hasUnsavedAnswers = computed(() => Object.entries(answers.value)
   .some(([id, value]) => savedAnswers.value[id] !== value))
+const saveStatusText = computed(() => {
+  if (savingCount.value) return 'Guardando respuestas…'
+  if (hasUnsavedAnswers.value) return 'Hay respuestas sin guardar. Mantén esta página abierta y reintenta el guardado.'
+  if (!answeredCount.value) return 'Tus respuestas se guardarán a medida que respondas.'
+  return 'Todas las respuestas seleccionadas están guardadas.'
+})
 
 function warnUnsaved(event) {
   if (savingCount.value || hasUnsavedAnswers.value) {
@@ -254,6 +282,7 @@ function selectAnswer(qId, val) {
   if (answers.value[qId] === val) return
   answers.value[qId] = val
   validationMessage.value = ''
+  invalidQuestionId.value = null
   queueSave(qId, val)
 }
 
@@ -264,10 +293,46 @@ function retrySaving() {
   }
 }
 
-function prevPage() {
-  if (currentPage.value > 0) {
+function questionNumber(qId) {
+  return questions.value.findIndex(q => q.id === qId) + 1
+}
+
+function scrollBehavior() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+}
+
+function scrollToQuestion(qId) {
+  const question = document.getElementById(`question-${qId}`)
+  if (!question) return
+  const status = questionnaireStatus.value
+  const stickyHeight = status && window.getComputedStyle(status).position === 'sticky'
+    ? status.getBoundingClientRect().height : 0
+  window.scrollTo({ top: Math.max(0, window.scrollY + question.getBoundingClientRect().top - stickyHeight - 16), behavior: scrollBehavior() })
+}
+
+async function focusBlock() {
+  await nextTick()
+  const heading = document.getElementById('questionnaire-block')
+  heading?.focus({ preventScroll: true })
+  const firstQuestion = paginatedQuestions.value[0]
+  scrollToQuestion(firstQuestion?.id)
+}
+
+async function showUnanswered(qId) {
+  currentPage.value = Math.floor((questionNumber(qId) - 1) / itemsPerPage)
+  invalidQuestionId.value = qId
+  validationMessage.value = `Responde la afirmación ${questionNumber(qId)} antes de continuar.`
+  await nextTick()
+  document.getElementById(`question-radio-${qId}-1`)?.focus({ preventScroll: true })
+  scrollToQuestion(qId)
+}
+
+async function prevPage() {
+  if (currentPage.value > 0 && !submitting.value) {
     currentPage.value--
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    validationMessage.value = ''
+    invalidQuestionId.value = null
+    await focusBlock()
   }
 }
 
@@ -277,18 +342,21 @@ async function nextPage() {
   const unansweredQuestions = paginatedQuestions.value.filter(q => !answers.value[q.id])
 
   if (unansweredQuestions.length > 0) {
-    validationMessage.value = 'Debes contestar todas las afirmaciones de este bloque antes de continuar.'
+    await showUnanswered(unansweredQuestions[0].id)
     return
   }
 
   if (!isLastPage.value) {
     currentPage.value++
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    validationMessage.value = ''
+    invalidQuestionId.value = null
+    await focusBlock()
     return
   }
 
-  if (questions.value.some(q => !answers.value[q.id])) {
-    validationMessage.value = 'Aún quedan preguntas sin responder.'
+  const firstUnanswered = questions.value.find(q => !answers.value[q.id])
+  if (firstUnanswered) {
+    await showUnanswered(firstUnanswered.id)
     return
   }
 
@@ -326,6 +394,7 @@ async function nextPage() {
   --r-card:     16px;
 
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--c-bg);
   color: var(--c-text);
   font-family: 'Inter', sans-serif;
@@ -338,9 +407,12 @@ async function nextPage() {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 24px;
 }
 .back-btn {
+  min-height: 44px;
   color: var(--c-muted);
   text-decoration: none;
   font-size: 0.9rem;
@@ -360,6 +432,7 @@ async function nextPage() {
   padding: 32px 24px;
   max-width: 1000px;
   width: 100%;
+  min-width: 0;
 }
 
 /* ── Barra de Progreso Superior (BPM) ───────────────────────────────────── */
@@ -370,7 +443,7 @@ async function nextPage() {
   padding: 24px;
   margin-bottom: 32px;
 }
-.bpm-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.bpm-header { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .bpm-badge { font-size: 0.72rem; background: #F1F5F9; padding: 4px 10px; border-radius: 6px; font-weight: 700; color: var(--c-muted); text-transform: uppercase; }
 .bpm-status-text { font-size: 0.85rem; color: var(--c-muted); }
 .bpm-status-text strong { color: var(--c-primary); }
@@ -380,7 +453,7 @@ async function nextPage() {
   width: 32px; height: 32px; border-radius: 50%; background: #FFFFFF; border: 2px solid var(--c-border);
   display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; color: var(--c-muted); z-index: 2;
 }
-.bpm-step__label { margin-top: 8px; font-size: 0.8rem; font-weight: 600; color: var(--c-muted); }
+.bpm-step__label { margin-top: 8px; font-size: 0.8rem; font-weight: 600; color: var(--c-muted); text-align: center; }
 .bpm-step__line { position: absolute; top: 16px; left: 50%; width: 100%; height: 2px; background: var(--c-border); z-index: 1; }
 
 .bpm-step--completed .bpm-step__node { background: #10B981; border-color: #10B981; color: #FFFFFF; }
@@ -422,8 +495,8 @@ async function nextPage() {
   width: 340px;
   text-align: left;
 }
-.progress-text { font-size: 0.82rem; color: var(--c-text); margin-bottom: 8px; font-weight: 500; }
-.progress-count { color: var(--c-muted); float: right; font-size: 0.8rem; }
+.progress-text { display: flex; flex-wrap: wrap; gap: 4px; font-size: 0.82rem; color: var(--c-text); margin-bottom: 8px; font-weight: 500; }
+.progress-count { color: var(--c-muted); margin-left: auto; font-size: 0.8rem; }
 .progress-bar-bg { width: 100%; height: 6px; background: #E2E8F0; border-radius: 100px; overflow: hidden; }
 .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--c-primary), #0EA5E9); transition: width 0.4s ease; }
 
@@ -436,10 +509,20 @@ async function nextPage() {
   box-shadow: 0 10px 25px rgba(15, 23, 42, 0.01);
 }
 .likert-table-wrapper { overflow-x: auto; }
+.questionnaire-status { background: var(--c-surface); padding-bottom: 20px; }
+.block-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 16px; margin-bottom: 8px; }
+.block-heading h2 { font-size: 1rem; font-weight: 700; }
+.block-heading > span { font-size: 0.8rem; color: var(--c-muted); }
+.save-status { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 0.85rem; color: var(--c-muted); }
+.save-status--pending { color: #92400E; }
+.save-status .btn { font-size: 0.85rem; padding: 10px 16px; }
+.likert-table caption { text-align: left; font-size: 0.9rem; color: var(--c-muted); padding-bottom: 16px; }
+.likert-row { scroll-margin-top: 24px; }
+.question-error { display: block; margin-top: 8px; font-size: 0.85rem; font-weight: 600; color: #B91C1C; }
 .loading-text { padding: 48px 0; text-align: center; color: var(--c-muted); font-size: 0.9rem; }
 .likert-table { width: 100%; border-collapse: collapse; text-align: left; }
 
-.likert-table th {
+.likert-table thead th {
   padding: 16px;
   font-size: 0.78rem;
   font-weight: 700;
@@ -458,7 +541,7 @@ async function nextPage() {
 .question-text { padding: 20px 16px; font-size: 0.95rem; font-weight: 500; color: var(--c-text); }
 .question-number { color: var(--c-primary); font-weight: 700; margin-right: 6px; }
 
-.option-cell { text-align: center; cursor: pointer; padding: 16px; }
+.option-cell { text-align: center; padding: 8px 4px; }
 
 /* Custom Radio Buttons redondos e interactivos */
 .radio-container {
@@ -467,8 +550,13 @@ async function nextPage() {
   justify-content: center;
   cursor: pointer;
   position: relative;
+  min-width: 44px;
+  min-height: 48px;
 }
-.radio-container input { position: absolute; opacity: 0; cursor: pointer; }
+.radio-container input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
+.radio-container:focus-within { outline: 3px solid var(--c-primary); outline-offset: 3px; border-radius: 8px; }
+.radio-container--disabled { cursor: not-allowed; opacity: 0.6; }
+.option-label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .custom-radio {
   width: 34px; height: 34px;
@@ -492,30 +580,69 @@ async function nextPage() {
 
 /* ── Footer de Navegación ───────────────────────────────────────────────── */
 .test-navigation-footer {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
   margin-top: 32px;
   border-top: 1px solid var(--c-border);
   padding-top: 24px;
 }
-.validation-warning { font-size: 0.85rem; color: #EF4444; font-weight: 600; background: #FEF2F2; padding: 8px 16px; border-radius: 8px; border: 1px solid #FCA5A5; }
+.test-navigation-footer .btn--ghost { justify-self: start; }
+.test-navigation-footer .btn--primary { justify-self: end; }
+.validation-warning { grid-column: 1 / -1; font-size: 0.85rem; color: #B91C1C; font-weight: 600; background: #FEF2F2; padding: 8px 16px; border-radius: 8px; border: 1px solid #FCA5A5; }
 
 /* Botones estructurados del Home */
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; border-radius: 100px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.92rem; text-decoration: none; cursor: pointer; transition: all 0.2s; border: none; }
 .btn--primary { background: var(--c-primary); color: #fff; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.2); }
 .btn--primary:hover { transform: translateY(-1px); background: #4338CA; box-shadow: 0 6px 20px rgba(79, 70, 229, 0.3); }
+.btn--primary:disabled { background: var(--c-border); color: #475569; box-shadow: none; transform: none; }
 .btn--ghost { background: #FFFFFF; color: var(--c-text); border: 1px solid var(--c-border); }
 .btn--ghost:hover:not(:disabled) { border-color: var(--c-primary); color: var(--c-primary); }
 .btn--ghost:disabled { color: #CBD5E1; border-color: #E2E8F0; cursor: not-allowed; }
 
 @media (max-width: 900px) {
-  .main-content { padding: 20px; box-sizing: border-box; min-width: 0; }
+  .main-content { padding: 20px var(--page-gutter); }
   .test-card-container, .test-header-zone { min-width: 0; }
   .likert-table-wrapper { max-width: 100%; }
   .test-header-zone { flex-direction: column; align-items: flex-start; }
   .progress-stats-box { width: 100%; box-sizing: border-box; }
-  .likert-table th:not(.col-question), .option-cell { padding: 8px 4px; }
-  .custom-radio { width: 28px; height: 28px; }
+  .likert-table thead th:not(.col-question) { padding: 12px 4px; }
+}
+
+/* Una sola tabla y los mismos radios: las filas pasan a tarjetas al faltar espacio. */
+@media (max-width: 700px) {
+  .test-title { font-size: clamp(1.4rem, 5vw, 1.8rem); }
+  .bpm-progress-card { padding: 16px; margin-bottom: 24px; }
+  .bpm-step__label { font-size: 0.7rem; overflow-wrap: anywhere; }
+  .test-instructions-box { padding: 16px; gap: 10px; }
+  .test-card-container { padding: 16px; border-radius: 16px; }
+  .questionnaire-status { position: sticky; top: 0; z-index: 5; padding: 12px 0; margin-bottom: 16px; border-bottom: 1px solid var(--c-border); }
+  .save-status { gap: 8px; }
+  .save-status .btn { width: 100%; }
+  .likert-table-wrapper { overflow: visible; }
+  .likert-table, .likert-table caption { display: block; width: 100%; }
+  .likert-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .likert-table tbody { display: grid; gap: 20px; }
+  .likert-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; border: 1px solid var(--c-border); border-radius: 12px; padding: 16px; scroll-margin-top: 150px; }
+  .likert-row:hover { background: transparent; }
+  .likert-row--invalid { border-color: #B91C1C; background: #FFF7F7; }
+  .question-text { width: auto; padding: 0 0 8px; font-size: 1rem; overflow-wrap: anywhere; }
+  .option-cell { padding: 0; }
+  .radio-container { display: flex; width: 100%; justify-content: flex-start; gap: 12px; min-height: 52px; padding: 10px 12px; border: 1px solid var(--c-border); border-radius: 10px; background: #F8FAFC; text-align: left; }
+  .radio-container--selected { border-color: var(--c-primary); background: #EEF2FF; }
+  .option-label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; font-size: 0.9rem; font-weight: 500; }
+  .custom-radio { width: 30px; height: 30px; flex-shrink: 0; }
+  .test-navigation-footer { grid-template-columns: minmax(0, 1fr); }
+  .test-navigation-footer .btn { width: 100%; justify-self: stretch; border-radius: 12px; }
+}
+
+@media (max-height: 500px) and (max-width: 700px) {
+  .questionnaire-status { position: static; }
+  .likert-row { scroll-margin-top: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar-fill, .custom-radio, .btn { transition: none; }
 }
 </style>

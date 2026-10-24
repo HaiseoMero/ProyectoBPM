@@ -1,47 +1,21 @@
 <template>
   <div class="dashboard-layout">
     
-    <aside class="sidebar">
-      <div class="sidebar__brand">
-        <span class="sidebar__logo-icon">◈</span>
-        <span class="sidebar__logo-text">Vócalis</span>
-      </div>
-      
-      <nav class="sidebar__nav">
-        <router-link :to="isOrientador ? '/orientador/dashboard' : '/estudiante/dashboard'" class="sidebar__link">
-          Dashboard
-        </router-link>
-        <router-link v-if="!isOrientador" to="/estudiante/dashboard#history-section" class="sidebar__link">
-          Mi Historial
-        </router-link>
-      </nav>
-
-      <div class="sidebar__footer">
-        <div class="user-avatar-zone">
-          <div class="avatar">{{ studentInitials }}</div>
-          <div class="user-info">
-            <span class="user-name">{{ displayedStudentName }}</span>
-            <span class="user-role">{{ isOrientador ? 'Estudiante evaluado' : 'Mi reporte' }}</span>
-          </div>
-        </div>
-        <a href="#" @click.prevent="logout" class="logout-btn">
-          Cerrar Sesión
-        </a>
-      </div>
-    </aside>
+    <DashboardNavigation
+      :items="navigationItems"
+      :user-name="displayedStudentName"
+      :user-role="isOrientador ? 'Estudiante evaluado' : 'Mi reporte'"
+      label="Navegación del reporte"
+      @logout="logout"
+    />
 
     <main class="main-content">
-      <nav class="mobile-nav" aria-label="Navegación del reporte">
-        <router-link :to="isOrientador ? '/orientador/dashboard' : '/estudiante/dashboard'">Dashboard</router-link>
-        <router-link v-if="!isOrientador" to="/estudiante/dashboard#history-section">Mi Historial</router-link>
-        <button type="button" @click="logout">Cerrar Sesión</button>
-      </nav>
-      <p v-if="isOrientador">Consulta del reporte de {{ displayedStudentName }}</p>
+      <p v-if="isOrientador" class="report-student">Consulta del reporte de {{ displayedStudentName }}</p>
       
-      <header class="bpm-progress-card">
+      <header v-if="!errorMessage" class="bpm-progress-card">
         <div class="bpm-header">
           <span class="bpm-badge">Resultados BFI-44</span>
-          <span class="bpm-status-text">Estado del proceso no disponible.</span>
+          <span class="bpm-status-text" role="status">{{ loading ? 'Consultando estado del proceso…' : 'Estado del proceso: ' + getBpmStatus(bpmState).label }}</span>
         </div>
       </header>
 
@@ -53,7 +27,7 @@
         </div>
       </section>
 
-      <p v-if="loading" class="loading-text">Cargando tu reporte…</p>
+      <p v-if="loading" class="loading-text" role="status">Cargando tu reporte…</p>
       <p v-else-if="errorMessage" role="alert">{{ errorMessage }}</p>
 
       <template v-else>
@@ -69,14 +43,25 @@
               {{ dim.label }} ({{ dim.score == null ? '—' : dim.score + '%' }})
             </div>
 
-            <svg class="radar__svg" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+            <svg class="radar__svg" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg"
+                 role="img" aria-labelledby="radar-title radar-description">
+              <title id="radar-title">Puntajes de las cinco dimensiones BFI-44</title>
+              <desc id="radar-description">Cada eje corresponde a una dimensión identificada con su nombre y porcentaje.</desc>
               <polygon v-for="(points, index) in radarGridPoints" :key="index" class="radar__grid" :points="points" />
               <line v-for="(point, index) in radarAxes" :key="index" class="radar__axis"
                     :x1="CENTER" :y1="CENTER" :x2="point.x" :y2="point.y" />
               <polygon v-if="hasRadarScores" class="radar__data" :points="radarPoints" />
               <circle v-for="(pt, i) in radarDots" :key="i" :cx="pt.x" :cy="pt.y" r="5" class="radar__dot" />
+              <text v-for="axis in radarLabelPoints" :key="axis.letter" :x="axis.x" :y="axis.y"
+                    class="radar__axis-letter" text-anchor="middle" dominant-baseline="middle" aria-hidden="true">{{ axis.letter }}</text>
             </svg>
           </div>
+          <dl class="radar-legend" aria-label="Puntajes por dimensión">
+            <div v-for="dim in radarDimensions" :key="dim.letter" class="radar-legend__item">
+              <dt><span class="radar-legend__letter">{{ dim.letter }}</span> {{ dim.label }}</dt>
+              <dd>{{ dim.score == null ? 'Sin puntaje' : dim.score + '%' }}</dd>
+            </div>
+          </dl>
 
           <div class="dominant-profile-badge">
             <div class="badge-info">
@@ -88,7 +73,7 @@
 
         <div class="report-text-card">
           <h3 class="card-inner-title">Interpretación de Dimensiones</h3>
-          <p class="card-inner-sub">Haz clic sobre cualquier dimensión para colapsar o expandir su descripción.</p>
+          <p class="card-inner-sub">Selecciona una dimensión para abrir o cerrar su descripción.</p>
 
           <div class="accordion-container">
             <div 
@@ -97,17 +82,20 @@
               class="accordion-item"
               :class="{ 'accordion-item--expanded': expandedIndexes.includes(index) }"
             >
-              <header class="accordion-header" @click="toggleAccordion(index)">
-                <div class="accordion-header__left">
+              <button :id="`dimension-toggle-${dim.letter}`" type="button" class="accordion-header"
+                      :aria-expanded="expandedIndexes.includes(index)"
+                      :aria-controls="`dimension-content-${dim.letter}`" @click="toggleAccordion(index)">
+                <span class="accordion-header__left">
                   <span class="accordion-letter" :style="{ color: dim.color }">{{ dim.letter }}</span>
                   <span class="accordion-name">{{ dim.name }}</span>
-                </div>
-                <div class="accordion-header__right">
+                </span>
+                <span class="accordion-header__right">
                   <span class="accordion-score-tag">Puntaje: {{ dim.score }}%</span>
-                  <span class="accordion-arrow">{{ expandedIndexes.includes(index) ? '▼' : '▶' }}</span>
-                </div>
-              </header>
-              <div v-show="expandedIndexes.includes(index)" class="accordion-content">
+                  <span class="accordion-arrow" aria-hidden="true">{{ expandedIndexes.includes(index) ? '▼' : '▶' }}</span>
+                </span>
+              </button>
+              <div v-show="expandedIndexes.includes(index)" :id="`dimension-content-${dim.letter}`"
+                   class="accordion-content" role="region" :aria-labelledby="`dimension-toggle-${dim.letter}`">
                 <p class="accordion-text-desc">{{ dim.interpretation }}</p>
                 <div class="trait-impact-indicator">
                   <strong>Alcance del puntaje:</strong> {{ dim.vocationalImpact }}
@@ -161,19 +149,26 @@ import { useRoute } from 'vue-router'
 import reporteService from '../services/reporteService'
 import orientadorService from '../services/orientadorService'
 import authService from '../services/authService'
+import DashboardNavigation from '../components/DashboardNavigation.vue'
+import { getBpmStatus } from '../utils/bpmStatus'
 
 const loading = ref(true)
 const errorMessage = ref('')
 const route = useRoute()
 const isOrientador = computed(() => route.meta.role === 'orientador')
+const navigationItems = computed(() => isOrientador.value
+  ? [{ label: 'Panel de alumnos', to: '/orientador/dashboard', active: false }]
+  : [
+      { label: 'Panel principal', to: '/estudiante/dashboard', active: false },
+      { label: 'Bitácora', to: '/estudiante/dashboard#history-section', active: false },
+    ])
 const studentName = ref('')
 const displayedStudentName = computed(() => studentName.value || 'Nombre no disponible')
-const studentInitials = computed(() => studentName.value
-  ? studentName.value.split(/\s+/).slice(0, 2).map(part => Array.from(part)[0]).join('').toUpperCase()
-  : '—')
+
 const evaluatedAt = ref('')
 const dimensionsData = ref([])
 const careerAreas = ref([])
+const bpmState = ref(null)
 
 watch([isOrientador, () => route.params.studentId], async ([orientador, studentId], _, onCleanup) => {
   let cancelled = false
@@ -184,6 +179,7 @@ watch([isOrientador, () => route.params.studentId], async ([orientador, studentI
   evaluatedAt.value = ''
   dimensionsData.value = []
   careerAreas.value = []
+  bpmState.value = null
   try {
     if (orientador && (!/^\d+$/.test(studentId || '') || Number(studentId) < 1)) {
       errorMessage.value = 'Identificador de estudiante inválido.'
@@ -197,6 +193,7 @@ watch([isOrientador, () => route.params.studentId], async ([orientador, studentI
     evaluatedAt.value = report.evaluatedAt
     dimensionsData.value = report.dimensions
     careerAreas.value = report.careerAreas
+    bpmState.value = report.bpm_estado ?? null
   } catch (error) {
     if (cancelled) return
     const messages = {
@@ -236,6 +233,7 @@ const radarDimensions = computed(() => AXES.map(axis => ({
 })))
 const hasRadarScores = computed(() => radarDimensions.value.every(dim => dim.score !== null))
 const radarAxes = AXES.map(axis => polarToXY(axis.angle, MAX_R))
+const radarLabelPoints = AXES.map(axis => ({ letter: axis.letter, ...polarToXY(axis.angle, MAX_R + 22) }))
 const radarGridPoints = [1, 0.75, 0.5, 0.25].map(scale =>
   AXES.map(axis => {
     const point = polarToXY(axis.angle, MAX_R * scale)
@@ -259,7 +257,7 @@ const dominantTraitLabel = computed(() => {
   return `${top.name} (${top.score}%)`
 })
 
-// Control de secciones colapsables (Se expanden las dos primeras dimensiones dominantes por defecto)
+// Se abren las dos primeras dimensiones del reporte por defecto.
 const expandedIndexes = ref([0, 1])
 
 function toggleAccordion(index) {
@@ -276,55 +274,9 @@ function logout() {
 </script>
 
 <style scoped>
-/* ── Infraestructura y Rejilla General ──────────────────────────────────── */
-.dashboard-layout {
-  --sidebar-w:  260px;
-  --c-bg:       #F8FAFC;
-  --c-surface:  #FFFFFF;
-  --c-primary:  #4F46E5;
-  --c-border:   #E2E8F0;
-  --c-text:     #0F172A;
-  --c-muted:    #64748B;
-  --r-card:     16px;
-
-  min-height: 100vh;
-  background: var(--c-bg);
-  color: var(--c-text);
-  font-family: 'Inter', sans-serif;
-  display: flex;
-}
-
-/* ── Sidebar (Consistente al 100%) ───────────────────────────────────────── */
-.sidebar {
-  width: var(--sidebar-w); background: var(--c-surface); border-right: 1px solid var(--c-border);
-  display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0; padding: 32px 24px; z-index: 50;
-}
-.sidebar__brand { display: flex; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.3rem; margin-bottom: 40px; }
-.sidebar__logo-icon { color: var(--c-primary); }
-.sidebar__nav { display: flex; flex-direction: column; gap: 8px; flex: 1; }
-.sidebar__link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; color: var(--c-muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
-.sidebar__link:hover, .sidebar__link--active { background: #EEF2FF; color: var(--c-primary); }
-.sidebar__icon { font-size: 1.1rem; }
-.sidebar__footer { border-top: 1px solid var(--c-border); padding-top: 20px; display: flex; flex-direction: column; gap: 16px; }
-.user-avatar-zone { display: flex; align-items: center; gap: 12px; }
-.avatar { width: 40px; height: 40px; background: #C7D2FE; color: var(--c-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
-.user-info { display: flex; flex-direction: column; text-align: left; }
-.user-name { font-weight: 600; font-size: 0.88rem; }
-.user-role { font-size: 0.75rem; color: var(--c-muted); }
-.logout-btn { color: #EF4444; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; }
-.logout-btn:hover { background: #FEF2F2; }
-
-/* ── Margen de contenido principal con la separación extra aplicada ─────── */
-.main-content {
-  flex: 1;
-  margin-left: calc(var(--sidebar-w) + 32px);
-  padding: 40px 48px;
-  max-width: 1100px;
-}
-
 /* ── Barra de Progreso Superior (BPM Finalizada) ────────────────────────── */
 .bpm-progress-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--r-card); padding: 24px; margin-bottom: 32px; }
-.bpm-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.bpm-header { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; }
 .bpm-badge { font-size: 0.72rem; background: #F1F5F9; padding: 4px 10px; border-radius: 6px; font-weight: 700; color: var(--c-muted); text-transform: uppercase; }
 .bpm-badge--success { background: #E1F5FE; color: #0288D1; }
 .bpm-status-text { font-size: 0.85rem; color: var(--c-muted); }
@@ -344,16 +296,18 @@ function logout() {
 .report-eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: var(--c-primary); margin-bottom: 4px; display: block; }
 .report-title { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.8rem; margin-bottom: 4px; }
 .report-sub { font-size: 0.9rem; color: var(--c-muted); }
+.report-student { margin-bottom: 16px; overflow-wrap: anywhere; }
+.report-title-container { min-width: 0; }
 
 /* ── Rejilla del Reporte: Gráfico vs Acordeón ───────────────────────────── */
-.report-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; margin-bottom: 32px; align-items: start; }
-.report-visual-card, .report-text-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 24px; padding: 32px; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.01); text-align: left; }
+.report-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 24px; margin-bottom: 32px; align-items: start; }
+.report-visual-card, .report-text-card { min-width: 0; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 24px; padding: 32px; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.01); text-align: left; overflow-wrap: anywhere; }
 
 .card-inner-title { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.15rem; margin-bottom: 4px; }
 .loading-text { padding: 48px 0; text-align: center; color: var(--c-muted); font-size: 0.9rem; }
 .card-inner-sub { font-size: 0.82rem; color: var(--c-muted); margin-bottom: 24px; }
 
-/* Posicionamiento de Etiquetas del Radar */
+/* Ejes identificados por letra; leyenda legible fuera del gráfico. */
 .radar-container-box { position: relative; display: flex; align-items: center; justify-content: center; height: 320px; margin-bottom: 20px; }
 .radar__svg { width: 260px; height: auto; filter: drop-shadow(0 8px 20px rgba(79, 70, 229, 0.08)); }
 .radar__grid, .radar__axis { stroke: #CBD5E1; stroke-width: 1; fill: none; }
@@ -367,6 +321,14 @@ function logout() {
 .radar__label-box--bl  { bottom: 18%; left: -5%; }
 .radar__label-box--tl  { top: 22%; left: -5%; }
 
+
+.radar__axis-letter { display: none; font-size: 16px; font-weight: 700; fill: var(--c-text); }
+.radar-legend { display: none; gap: 8px; margin: 0; }
+.radar-legend__item { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 12px; background: #F8FAFC; border: 1px solid var(--c-border); border-radius: 8px; font-size: 0.85rem; }
+.radar-legend dt { min-width: 0; }
+.radar-legend dd { margin: 0; flex-shrink: 0; font-weight: 700; }
+.radar-legend__letter { color: var(--c-primary); font-weight: 800; }
+
 .dominant-profile-badge { display: flex; align-items: center; gap: 12px; background: #EEF2FF; border: 1px solid #C7D2FE; padding: 14px; border-radius: 12px; margin-top: 28px; }
 .badge-icon { font-size: 1.5rem; }
 .badge-info { display: flex; flex-direction: column; }
@@ -377,10 +339,11 @@ function logout() {
 .accordion-container { display: flex; flex-direction: column; gap: 12px; }
 .accordion-item { border: 1px solid var(--c-border); border-radius: 12px; overflow: hidden; transition: all 0.2s; }
 .accordion-item--expanded { border-color: #C7D2FE; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.03); }
-.accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #FFFFFF; cursor: pointer; transition: background 0.15s; user-select: none; }
+.accordion-header { width: 100%; min-height: 56px; display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: space-between; align-items: center; padding: 16px 20px; color: var(--c-text); text-align: left; border: none; background: #FFFFFF; cursor: pointer; transition: background 0.15s; }
 .accordion-header:hover { background: #F8FAFC; }
+.accordion-header:focus-visible { outline-offset: -4px; }
 
-.accordion-header__left { display: flex; align-items: center; gap: 12px; }
+.accordion-header__left { display: flex; min-width: 0; align-items: center; gap: 12px; }
 .accordion-letter { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.2rem; }
 .accordion-name { font-weight: 600; font-size: 0.9rem; }
 .accordion-header__right { display: flex; align-items: center; gap: 14px; }
@@ -396,8 +359,8 @@ function logout() {
 .section-title-secondary { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.3rem; margin-bottom: 4px; }
 .section-sub-secondary { font-size: 0.9rem; color: var(--c-muted); margin-bottom: 28px; }
 
-.career-cards-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 32px; }
-.career-area-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--r-card); padding: 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.01); }
+.career-cards-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-bottom: 32px; }
+.career-area-card { min-width: 0; overflow-wrap: anywhere; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--r-card); padding: 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.01); }
 .career-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .career-card-icon { font-size: 1.6rem; }
 .career-card-title { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1rem; color: var(--c-text); }
@@ -405,7 +368,7 @@ function logout() {
 
 .career-list-box { background: var(--c-bg); border: 1px solid var(--c-border); padding: 16px; border-radius: 12px; }
 .career-list-box h5 { font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: var(--c-muted); margin-bottom: 10px; }
-.career-list-box ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.career-list-box ul { padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .career-list-box li { font-size: 0.85rem; font-weight: 600; color: var(--c-text); }
 
 /* Caja de sugerencias de ingeniería final */
@@ -413,47 +376,31 @@ function logout() {
 .tips-icon { font-size: 2rem; line-height: 1; }
 .tips-content h4 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1rem; color: #92400E; margin-bottom: 6px; }
 .tips-content p { font-size: 0.9rem; line-height: 1.6; color: #B45309; }
+.tips-content { min-width: 0; overflow-wrap: anywhere; }
 
 /* Botones estándar del proyecto */
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 100px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.88rem; text-decoration: none; cursor: pointer; transition: all 0.2s; border: none; }
 
-.mobile-nav { display: none; }
-.mobile-nav button, .mobile-nav a {
-  border: 1px solid var(--c-border);
-  border-radius: 8px;
-  background: var(--c-surface);
-  color: var(--c-primary);
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 8px 10px;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-@media (max-width: 900px) {
-  .mobile-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-  .sidebar { display: none; }
-  .main-content { margin-left: 0; padding: 20px; }
+@media (max-width: 1200px) {
   .report-grid, .career-cards-grid { grid-template-columns: 1fr; }
-  .radar-container-box { width: 100%; max-width: 320px; margin: 0 auto 20px; }
   .report-header-zone { flex-direction: column; align-items: flex-start; gap: 16px; }
 }
 @media (max-width: 600px) {
-  .radar-container-box {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    height: auto;
-    gap: 8px;
-  }
-  .radar__svg { grid-column: 1 / -1; grid-row: 1; justify-self: center; max-width: 100%; }
-  .radar__label-box {
-    position: static;
-    transform: none;
-    box-sizing: border-box;
-    text-align: center;
-    overflow-wrap: anywhere;
-  }
-  .radar__label-box--tl { grid-column: 1 / -1; justify-self: center; }
+  .radar-container-box { height: auto; margin-bottom: 16px; }
+  .radar__svg { width: 100%; max-width: 320px; }
+  .radar__label-box { display: none; }
+  .radar__axis-letter { display: block; }
+  .radar-legend { display: grid; }
+  .bpm-progress-card, .report-visual-card, .report-text-card, .career-area-card, .actionable-tips-card { padding: 20px; border-radius: var(--r-card); }
+  .report-title { font-size: 1.5rem; }
+  .report-grid, .career-cards-grid { gap: 16px; }
+  .accordion-header { padding: 14px; }
+  .accordion-header__left { gap: 8px; }
+  .accordion-header__right { width: 100%; justify-content: space-between; }
+  .accordion-content { padding: 16px 14px; }
+  .career-recommendations-zone { margin-top: 24px; padding-top: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .accordion-item, .accordion-header { transition: none; }
 }
 </style>

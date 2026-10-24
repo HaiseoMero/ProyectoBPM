@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap');
+
+:root {
+  --c-bg: #F8FAFC;
+  --c-surface: #FFFFFF;
+  --c-primary: #4F46E5;
+  --c-border: #E2E8F0;
+  --c-text: #0F172A;
+  --c-muted: #64748B;
+  --c-accent-completed: #10B981;
+  --r-card: 16px;
+  --sidebar-w: 260px;
+  --page-gutter: clamp(16px, 3vw, 24px);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: var(--c-text);
+  background: var(--c-bg);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4, h5, h6, p, ul, ol { margin: 0; }
+h1, h2, h3, h4, h5, h6 { overflow-wrap: anywhere; }
+button, input, select, textarea { font: inherit; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button, input, select, textarea { min-width: 0; }
+button { overflow-wrap: anywhere; }
+button:disabled { cursor: not-allowed; }
+img, svg { max-width: 100%; }
+
+:focus-visible {
+  outline: 3px solid var(--c-primary);
+  outline-offset: 3px;
+}
+
+/* Espacio táctil compartido sin cambiar los radios del cuestionario. */
+.btn, .btn-table, .role-btn, .auth-back-btn { min-height: 44px; }
+.btn { justify-content: center; text-align: center; max-width: 100%; }
+.btn--full { width: 100%; }
+
+.dashboard-layout {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  background: var(--c-bg);
+  color: var(--c-text);
+}
+
+.dashboard-layout > .main-content {
+  flex: 1;
+  min-width: 0;
+  width: calc(100% - var(--sidebar-w));
+  max-width: 1246px;
+  margin-left: var(--sidebar-w);
+  padding: 40px 48px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-layout { flex-direction: column; }
+  .dashboard-layout > .main-content {
+    width: 100%;
+    margin-left: 0;
+    padding: 24px var(--page-gutter);
+  }
+  input, select, textarea { font-size: 16px; }
+}

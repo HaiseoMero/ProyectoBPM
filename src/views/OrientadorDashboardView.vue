@@ -1,37 +1,15 @@
 <template>
   <div class="dashboard-layout">
     
-    <aside class="sidebar">
-      <div class="sidebar__brand">
-        <span class="sidebar__logo-icon">◈</span>
-        <span class="sidebar__logo-text">Vócalis</span>
-      </div>
-      
-      <nav class="sidebar__nav">
-        <router-link to="/orientador/dashboard" class="sidebar__link sidebar__link--active">
-          Panel de Alumnos
-        </router-link>
-      </nav>
-
-      <div class="sidebar__footer">
-        <div class="user-avatar-zone">
-          <div class="avatar avatar--admin">{{ userInitials }}</div>
-          <div class="user-info">
-            <span class="user-name">{{ userName }}</span>
-            <span class="user-role">Orientador(a) Escolar</span>
-          </div>
-        </div>
-        <a href="#" @click.prevent="logout" class="logout-btn">
-          Cerrar Sesión
-        </a>
-      </div>
-    </aside>
+    <DashboardNavigation
+      :items="[{ label: 'Panel de alumnos', to: '/orientador/dashboard', active: true }]"
+      :user-name="userName"
+      user-role="Orientador(a) escolar"
+      label="Navegación del orientador"
+      @logout="logout"
+    />
 
     <main class="main-content">
-      <nav class="mobile-nav" aria-label="Navegación del orientador">
-        <button type="button" @click="logout">Cerrar Sesión</button>
-      </nav>
-      
       <section class="panel-header-zone">
         <div class="panel-title-container">
           <span class="panel-eyebrow">Unidad de Convivencia y Orientación Escolar</span>
@@ -61,27 +39,49 @@
         </div>
       </section>
 
+      <section class="course-assignment" aria-labelledby="course-assignment-title">
+        <div class="course-assignment__header">
+          <h2 id="course-assignment-title">Cursos sin orientador asignado</h2>
+          <button type="button" class="btn-table btn-table--primary" :disabled="loadingCourses || assigningCourseId !== null" @click="loadCourses">Actualizar cursos</button>
+        </div>
+        <p>Si compartes colegio con otros orientadores, coordina qué cursos atenderá cada uno. Al tomar un curso a cargo, sus estudiantes actuales y los que se registren después aparecerán en tu panel. Se conservan los cursos que ya tienen responsable.</p>
+        <p v-if="courseMessage" role="status">{{ courseMessage }}</p>
+        <p v-if="assignmentError" role="alert">{{ assignmentError }}</p>
+        <p v-if="loadingCourses" role="status">Consultando cursos de tu establecimiento…</p>
+        <p v-else-if="coursesError" role="alert">{{ coursesError }} Usa «Actualizar cursos» para reintentar.</p>
+        <p v-else-if="unassignedCourses.length === 0">No hay cursos sin asignar en tu establecimiento.</p>
+        <ul v-else class="unassigned-courses">
+          <li v-for="course in unassignedCourses" :key="course.id">
+            <span><strong>{{ course.nombre }}</strong> · {{ course.total_estudiantes }} estudiantes</span>
+            <button type="button" class="btn-table btn-table--primary" :disabled="assigningCourseId !== null" :aria-label="`Tomar a cargo ${course.nombre}`" @click="assignCourse(course)">
+              {{ assigningCourseId === course.id ? 'Asignando…' : 'Tomar a cargo' }}
+            </button>
+          </li>
+        </ul>
+      </section>
+
       <section class="filters-card">
         <div class="filters-grid">
           <div class="filter-group">
-            <label>Buscar estudiante</label>
+            <label for="student-search">Buscar estudiante</label>
             <input 
+              id="student-search"
               v-model="filters.search" 
-              type="text" 
+              type="search"
               placeholder="Ej: José Miguel Piña..." 
               class="filter-input"
             />
           </div>
           <div class="filter-group">
-            <label>Curso</label>
-            <select v-model="filters.course" class="filter-select">
+            <label for="student-course">Curso</label>
+            <select id="student-course" v-model="filters.course" class="filter-select">
               <option value="">Todos los cursos</option>
               <option v-for="course in availableCourses" :key="course" :value="course">{{ course }}</option>
             </select>
           </div>
           <div class="filter-group">
-            <label>Estado del Flujo Camunda</label>
-            <select v-model="filters.status" class="filter-select">
+            <label for="student-status">Estado del Flujo Camunda</label>
+            <select id="student-status" v-model="filters.status" class="filter-select">
               <option value="">Todos los estados</option>
               <option v-for="step in bpmStages" :key="step.state" :value="step.state">{{ step.label }}</option>
               <option value="unavailable">Estado no disponible</option>
@@ -91,7 +91,7 @@
       </section>
 
       <section class="table-section">
-        <p v-if="loadingStudents" class="loading-text">Cargando estudiantes…</p>
+        <p v-if="loadingStudents" class="loading-text" role="status">Cargando estudiantes…</p>
         <div v-else-if="studentsError" class="loading-text" role="alert">
           <p>{{ studentsError }}</p>
           <button class="btn-table btn-table--primary" @click="loadStudents">Reintentar</button>
@@ -100,32 +100,44 @@
         <template v-else>
         <div class="table-container">
           <table class="students-table">
+            <caption class="table-caption">Estudiantes asignados y estado de su proceso</caption>
             <thead>
               <tr>
-                <th>Estudiante</th>
-                <th>Curso</th>
-                <th>Inicio de evaluación</th>
-                <th>Estado Flujo BPM</th>
-                <th style="text-align: center;">Acciones</th>
+                <th scope="col">Estudiante</th>
+                <th scope="col">Curso</th>
+                <th scope="col">Inicio de evaluación</th>
+                <th scope="col">Estado Flujo BPM</th>
+                <th scope="col" style="text-align: center;">Acciones</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="student in filteredStudents" :key="student.id" class="table-row">
                 <td>
                   <div class="student-profile-cell">
-                    <div class="student-initials">{{ student.name.split(' ').map(n => n[0]).join('').substring(0,2) }}</div>
+                    <div class="student-initials" aria-hidden="true">{{ student.name.split(' ').map(n => n[0]).join('').substring(0,2) }}</div>
                     <div class="student-meta">
                       <strong class="student-name">{{ student.name }}</strong>
                       <span class="student-email">{{ student.email }}</span>
                     </div>
                   </div>
                 </td>
-                <td><span class="course-tag">{{ student.course }}</span></td>
-                <td><span class="date-text">{{ student.lastUpdate }}</span></td>
                 <td>
+                  <span class="cell-label" aria-hidden="true">Curso</span>
+                  <span class="course-tag">{{ student.course }}</span>
+                </td>
+                <td>
+                  <span class="cell-label" aria-hidden="true">Inicio de evaluación</span>
+                  <span class="date-text">{{ student.lastUpdate }}</span>
+                </td>
+                <td>
+                  <span class="cell-label" aria-hidden="true">Estado Flujo BPM</span>
                   <span class="bpm-tag" :class="'bpm-tag--' + getBpmStatus(student.bpm_estado).statusClass">
                     {{ getBpmStatus(student.bpm_estado).label }}
                   </span>
+                  <span
+                    v-if="student.estado_evaluacion === 'en_progreso' && !student.hasReport"
+                    class="report-unavailable"
+                  >Evaluación pendiente</span>
                 </td>
                 <td>
                   <div class="actions-cell-buttons">
@@ -133,10 +145,12 @@
                       @click="viewReport(student)" 
                       class="btn-table btn-table--primary"
                       :disabled="!student.hasReport"
+                      :aria-label="`Ver reporte de ${student.name}`"
                     >
                       Ver Reporte
                     </button>
                   </div>
+                  <span v-if="!student.hasReport" class="report-unavailable">Reporte no disponible</span>
                 </td>
               </tr>
               <tr v-if="filteredStudents.length === 0">
@@ -149,7 +163,7 @@
         </div>
 
         <footer class="table-pagination-footer">
-          <span class="pagination-info">Mostrando <strong>{{ filteredStudents.length }}</strong> de <strong>{{ studentsPool.length }}</strong> alumnos registrados</span>
+          <span class="pagination-info" role="status" aria-live="polite" aria-atomic="true">Mostrando <strong>{{ filteredStudents.length }}</strong> de <strong>{{ studentsPool.length }}</strong> alumnos registrados</span>
         </footer>
         </template>
       </section>
@@ -163,6 +177,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import orientadorService from '../services/orientadorService'
 import authService from '../services/authService'
+import DashboardNavigation from '../components/DashboardNavigation.vue'
 import { bpmStages, getBpmStatus } from '../utils/bpmStatus'
 
 const router = useRouter()
@@ -177,6 +192,47 @@ const studentsPool = ref([])
 const loadingStudents = ref(true)
 const studentsError = ref('')
 const userName = ref('Orientador')
+const unassignedCourses = ref([])
+const loadingCourses = ref(true)
+const coursesError = ref('')
+const assigningCourseId = ref(null)
+const assignmentError = ref('')
+const courseMessage = ref('')
+
+async function loadCourses() {
+  loadingCourses.value = true
+  coursesError.value = ''
+  try {
+    unassignedCourses.value = await orientadorService.getUnassignedCourses()
+  } catch {
+    coursesError.value = 'No se pudieron consultar los cursos.'
+  } finally {
+    loadingCourses.value = false
+  }
+}
+
+async function assignCourse(course) {
+  if (assigningCourseId.value !== null) return
+  assigningCourseId.value = course.id
+  assignmentError.value = ''
+  courseMessage.value = ''
+  try {
+    await orientadorService.assignCourse(course.id)
+    courseMessage.value = `Ahora tienes a cargo el curso ${course.nombre}.`
+    await Promise.all([loadCourses(), loadStudents()])
+  } catch (error) {
+    const messages = {
+      401: 'Tu sesión no es válida. Vuelve a iniciar sesión.',
+      403: 'No tienes permiso para asignar cursos.',
+      404: 'El curso ya no está disponible en tu establecimiento.',
+      409: 'Otro orientador ya tomó este curso a cargo. La lista se ha actualizado.',
+    }
+    assignmentError.value = messages[error.response?.status] || 'No se pudo confirmar la asignación. Actualiza los cursos e intenta nuevamente.'
+    if ([404, 409].includes(error.response?.status)) await loadCourses()
+  } finally {
+    assigningCourseId.value = null
+  }
+}
 
 // Métricas calculadas dinámicamente desde los datos reales
 const totalAlumnos = computed(() => studentsPool.value.length)
@@ -197,16 +253,6 @@ const availableCourses = computed(() => {
   return [...courses].sort()
 })
 
-// Iniciales del nombre del orientador
-const userInitials = computed(() => {
-  return userName.value
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .substring(0, 2)
-    .toUpperCase()
-})
-
 async function loadStudents() {
   loadingStudents.value = true
   studentsError.value = ''
@@ -224,6 +270,7 @@ onMounted(() => {
     if (profile) userName.value = profile.name
   })
   loadStudents()
+  loadCourses()
 })
 
 const filteredStudents = computed(() => {
@@ -251,67 +298,13 @@ function logout() {
 </script>
 
 <style scoped>
-/* ── Variables de Entorno y Colores ── */
-.dashboard-layout {
-  --sidebar-w:  260px;
-  --c-bg:       #F8FAFC;
-  --c-surface:  #FFFFFF;
-  --c-primary:  #4F46E5;
-  --c-border:   #E2E8F0;
-  --c-text:     #0F172A;
-  --c-muted:    #64748B;
-  --r-card:     16px;
-
-  min-height: 100vh;
-  background: var(--c-bg);
-  color: var(--c-text);
-  font-family: 'Inter', sans-serif;
-  display: flex;
-}
-
-/* ── Sidebar ── */
-.sidebar {
-  width: var(--sidebar-w);
-  background: var(--c-surface);
-  border-right: 1px solid var(--c-border);
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0; bottom: 0; left: 0;
-  padding: 32px 24px;
-  z-index: 50;
-}
-.sidebar__brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: 'Poppins', sans-serif;
-  font-weight: 800;
-  font-size: 1.3rem;
-  margin-bottom: 40px;
-}
-.sidebar__logo-icon { color: var(--c-primary); }
-.sidebar__nav { display: flex; flex-direction: column; gap: 8px; flex: 1; }
-.sidebar__link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; color: var(--c-muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
-.sidebar__link:hover, .sidebar__link--active { background: #EEF2FF; color: var(--c-primary); }
-.sidebar__footer { border-top: 1px solid var(--c-border); padding-top: 20px; display: flex; flex-direction: column; gap: 16px; }
-.user-avatar-zone { display: flex; align-items: center; gap: 12px; }
-.avatar { width: 40px; height: 40px; background: #C7D2FE; color: var(--c-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
-.avatar--admin { background: #FEE2E2; color: #EF4444; }
-.user-info { display: flex; flex-direction: column; text-align: left; }
-.user-name { font-weight: 600; font-size: 0.88rem; }
-.user-role { font-size: 0.75rem; color: var(--c-muted); }
-.logout-btn { color: #EF4444; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; text-align: left; }
-.logout-btn:hover { background: #FEF2F2; }
-
-/* ── Margen del Contenido con Separación Corregida ── */
-.main-content {
-  flex: 1;
-  margin-left: calc(var(--sidebar-w) + 32px);
-  padding: 40px 48px;
-  max-width: 1150px;
-}
-
+.course-assignment { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--r-card); padding: 24px; margin-bottom: 24px; text-align: left; }
+.course-assignment__header { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; }
+.course-assignment h2 { font-family: 'Poppins', sans-serif; font-size: 1.05rem; }
+.course-assignment p { color: var(--c-muted); font-size: 0.86rem; line-height: 1.6; margin-top: 12px; }
+.course-assignment .btn-table { min-height: 44px; }
+.unassigned-courses { list-style: none; padding: 0; margin-top: 16px; display: grid; gap: 12px; }
+.unassigned-courses li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; background: #F8FAFC; border-radius: 10px; font-size: 0.88rem; }
 /* ── Encabezado ── */
 .panel-header-zone { margin-bottom: 32px; text-align: left; }
 .panel-eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: var(--c-primary); margin-bottom: 4px; display: block; }
@@ -319,7 +312,7 @@ function logout() {
 .panel-sub { font-size: 0.9rem; color: var(--c-muted); }
 
 /* ── Tarjetas de Métricas ── */
-.metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 32px; }
+.metrics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-bottom: 32px; }
 .metric-card { background: var(--c-surface); border: 1px solid var(--c-border); padding: 24px; border-radius: var(--r-card); display: flex; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.01); }
 .metric-card__data { display: flex; flex-direction: column; text-align: left; }
 .metric-num { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.7rem; color: var(--c-text); line-height: 1.1; }
@@ -327,16 +320,20 @@ function logout() {
 
 /* ── Filtros ── */
 .filters-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--r-card); padding: 24px; margin-bottom: 24px; }
-.filters-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; }
-.filter-group { display: flex; flex-direction: column; text-align: left; gap: 6px; }
+.filters-grid { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); gap: 20px; }
+.filter-group { display: flex; flex-direction: column; min-width: 0; text-align: left; gap: 6px; }
 .filter-group label { font-size: 0.78rem; font-weight: 700; color: var(--c-muted); text-transform: uppercase; letter-spacing: 0.02em; }
-.filter-input, .filter-select { background: #F8FAFC; border: 1px solid var(--c-border); border-radius: 10px; padding: 12px 14px; font-size: 0.88rem; color: var(--c-text); outline: none; font-family: 'Inter', sans-serif; }
+.filter-input, .filter-select { width: 100%; min-height: 48px; background: #F8FAFC; border: 1px solid var(--c-border); border-radius: 10px; padding: 12px 14px; font-size: 0.88rem; color: var(--c-text); outline: none; font-family: 'Inter', sans-serif; }
 .filter-input:focus, .filter-select:focus { border-color: var(--c-primary); background: #FFFFFF; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
 
 /* ── Tabla (Bug Solucionado agregando padding exacto a las celdas td) ── */
 .table-section { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--r-card); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.01); }
 .table-container { overflow-x: auto; }
-.loading-text { padding: 48px 0; text-align: center; color: var(--c-muted); font-size: 0.9rem; }
+.loading-text { padding: 40px 20px; text-align: center; color: var(--c-muted); font-size: 0.9rem; }
+.loading-text .btn-table { margin-top: 16px; }
+.table-caption { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.cell-label { display: none; }
+.report-unavailable { display: block; margin-top: 6px; color: var(--c-muted); font-size: 0.78rem; }
 .students-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left; }
 
 .students-table th { 
@@ -362,15 +359,15 @@ function logout() {
 /* Celda interna de perfil de estudiante */
 .student-profile-cell { display: flex; align-items: center; gap: 14px; }
 .student-initials { width: 38px; height: 38px; background: #EEF2FF; color: var(--c-primary); font-weight: 700; font-size: 0.8rem; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.student-meta { display: flex; flex-direction: column; text-align: left; }
+.student-meta { display: flex; flex-direction: column; min-width: 0; text-align: left; overflow-wrap: anywhere; }
 .student-name { font-size: 0.92rem; color: var(--c-text); }
 .student-email { font-size: 0.78rem; color: var(--c-muted); }
 
-.course-tag { background: #F1F5F9; color: #475569; padding: 4px 10px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; }
+.course-tag { display: inline-block; background: #F1F5F9; color: #475569; padding: 4px 10px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; }
 .date-text { color: var(--c-muted); font-size: 0.85rem; }
 
 /* Estados del flujo */
-.bpm-tag { font-size: 0.78rem; font-weight: 700; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; }
+.bpm-tag { font-size: 0.78rem; font-weight: 700; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; overflow-wrap: anywhere; }
 .bpm-tag--success { background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; }
 .bpm-tag--warning { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
 .bpm-tag--info { background: #EFF6FF; color: #1E40AF; border: 1px solid #BFDBFE; }
@@ -389,25 +386,38 @@ function logout() {
 
 .empty-table-msg { text-align: center; color: var(--c-muted); font-style: italic; padding: 40px !important; }
 
-.mobile-nav { display: none; }
-.mobile-nav button, .mobile-nav a {
-  border: 1px solid var(--c-border);
-  border-radius: 8px;
-  background: var(--c-surface);
-  color: var(--c-primary);
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 8px 10px;
-  text-decoration: none;
-  cursor: pointer;
+@media (max-width: 1200px) {
+  .filters-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filter-group:first-child { grid-column: 1 / -1; }
 }
-
+@media (max-width: 1100px) {
+  .table-container { overflow: visible; padding: 16px; }
+  .students-table { display: block; }
+  .students-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .students-table tbody { display: grid; gap: 16px; }
+  .students-table tr { display: block; min-width: 0; }
+  .table-row { padding: 16px; border: 1px solid var(--c-border); border-radius: 12px; }
+  .students-table td { display: block; padding: 0; }
+  .students-table td + td { margin-top: 12px; }
+  .cell-label { display: block; margin-bottom: 4px; font-size: 0.75rem; font-weight: 700; color: var(--c-muted); }
+  .actions-cell-buttons .btn-table { width: 100%; min-height: 48px; }
+  .empty-table-msg { padding: 16px !important; }
+}
 @media (max-width: 900px) {
-  .mobile-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-  .sidebar { display: none; }
-  .main-content { margin-left: 0; padding: 20px; }
-  .metrics-grid, .filters-grid { grid-template-columns: 1fr; }
-  .actions-cell-buttons { flex-direction: column; }
+  .filter-input, .filter-select { font-size: 16px; }
+}
+@media (max-width: 600px) {
+  .panel-title { font-size: 1.5rem; }
+  .metrics-grid, .filters-grid { grid-template-columns: 1fr; gap: 12px; }
+  .metric-card { padding: 16px 20px; }
+  .metric-card__data { width: 100%; flex-direction: row; align-items: center; gap: 16px; }
+  .metric-num { min-width: 2ch; }
+  .metric-label { margin-top: 0; }
+  .filters-card { padding: 20px; }
+  .table-container, .table-pagination-footer { padding: 12px; }
+  .table-pagination-footer { text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .table-row, .btn-table { transition: none; }
 }
 </style>

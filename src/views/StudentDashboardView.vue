@@ -1,48 +1,15 @@
 <template>
   <div class="dashboard-layout">
     
-    <aside class="sidebar">
-      <div class="sidebar__brand">
-        <span class="sidebar__logo-icon">◈</span>
-        <span class="sidebar__logo-text">Vócalis</span>
-      </div>
-      
-      <nav class="sidebar__nav">
-        <a href="#" 
-           class="sidebar__link" 
-           :class="{ 'sidebar__link--active': currentTab === 'dashboard' }"
-           @click.prevent="currentTab = 'dashboard'">
-          Dashboard
-        </a>
-        <a href="#" 
-           class="sidebar__link" 
-           :class="{ 'sidebar__link--active': currentTab === 'history' }"
-           @click.prevent="currentTab = 'history'">
-          Bitácora de Proceso
-        </a>
-      </nav>
-
-      <div class="sidebar__footer">
-        <div class="user-avatar-zone">
-          <div class="avatar">{{ studentInitials }}</div>
-          <div class="user-info">
-            <span class="user-name">{{ studentName || 'Estudiante' }}</span>
-            <span class="user-role">Estudiante</span>
-          </div>
-        </div>
-        <a href="#" @click.prevent="logout" class="logout-btn">
-          Cerrar Sesión
-        </a>
-      </div>
-    </aside>
+    <DashboardNavigation
+      :items="navigationItems"
+      :user-name="studentName || 'Estudiante'"
+      user-role="Estudiante"
+      label="Navegación del estudiante"
+      @logout="logout"
+    />
 
     <main class="main-content">
-      <nav class="mobile-nav" aria-label="Navegación del estudiante">
-        <button type="button" @click="currentTab = 'dashboard'">Dashboard</button>
-        <button type="button" @click="currentTab = 'history'">Bitácora</button>
-        <button type="button" @click="logout">Cerrar Sesión</button>
-      </nav>
-      
       <header class="bpm-progress-card">
         <div class="bpm-header">
           <span class="bpm-badge">Estado BPM registrado</span>
@@ -58,13 +25,14 @@
               'bpm-step--completed': index < currentBpmStageIndex, 
               'bpm-step--active': index === currentBpmStageIndex 
             }"
+            :aria-current="index === currentBpmStageIndex ? 'step' : undefined"
           >
             <div class="bpm-step__node">
               <span v-if="index < currentBpmStageIndex">✓</span>
               <span v-else>{{ index + 1 }}</span>
             </div>
             <span class="bpm-step__label">{{ step.label }}</span>
-            <div v-if="index < bpmStages.length - 1" class="bpm-step__line"></div>
+            <div v-if="index < bpmStages.length - 1" class="bpm-step__line" aria-hidden="true"></div>
           </div>
         </div>
       </header>
@@ -87,17 +55,20 @@
 
         <div v-else-if="!report && !hasPreviousTest && !loadError" class="action-card action-card--start">
           <div class="action-card__info">
-            <span class="action-card__badge">Disponible ahora</span>
-            <h2 class="action-card__title">El cuestionario BFI-44 está disponible</h2>
-            <p class="action-card__desc">Aún no hay un reporte disponible.</p>
-            <p class="action-card__desc">
+            <span class="action-card__badge">{{ hasPendingTest ? 'Cuestionario pendiente' : 'Disponible ahora' }}</span>
+            <h2 class="action-card__title">{{ hasPendingTest ? 'Tienes un cuestionario BFI-44 pendiente' : 'El cuestionario BFI-44 está disponible' }}</h2>
+            <p v-if="hasPendingTest" class="action-card__desc">
+              Dejaste tu cuestionario sin finalizar. Tus respuestas guardadas se conservan para que puedas retomarlo desde donde quedaste.
+            </p>
+            <p v-else class="action-card__desc">Aún no hay un reporte disponible.</p>
+            <p v-if="!hasPendingTest" class="action-card__desc">
               Responde 44 afirmaciones sobre cómo te describes habitualmente. Los resultados muestran dimensiones de personalidad para apoyar tu reflexión.
             </p>
             <p class="action-card__warning">
               ⚡ 44 afirmaciones · sin límite de tiempo · un envío final
             </p>
             <button @click="startTest" class="btn btn--primary">
-              Iniciar cuestionario BFI-44
+              {{ hasPendingTest ? 'Continuar cuestionario BFI-44' : 'Iniciar cuestionario BFI-44' }}
             </button>
           </div>
           <div class="action-card__visual">
@@ -157,6 +128,10 @@
 
       <section v-show="currentTab === 'history'" class="history-section" id="history-section">
         <h3 class="history-title">Bitácora de mi Proceso</h3>
+        <p v-if="loading" role="status">Cargando tu bitácora…</p>
+        <p v-else-if="!loadError && !Object.values(timeline).some(Boolean)" class="action-card__desc">
+          Aún no hay fechas registradas en tu bitácora.
+        </p>
         
         <div class="timeline-container">
           <div v-if="timeline.registro" class="timeline-item">
@@ -193,6 +168,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import authService from '../services/authService'
+import DashboardNavigation from '../components/DashboardNavigation.vue'
 import evaluacionService from '../services/evaluacionService'
 import reporteService from '../services/reporteService'
 import { bpmStages, getBpmStatus } from '../utils/bpmStatus'
@@ -202,17 +178,21 @@ const route = useRoute()
 
 // Pestaña actual de la interfaz
 const currentTab = ref('dashboard')
+const navigationItems = computed(() => [
+  { label: 'Panel principal', to: '/estudiante/dashboard', active: currentTab.value === 'dashboard' },
+  { label: 'Bitácora', to: '/estudiante/dashboard#history-section', active: currentTab.value === 'history' },
+])
 watch(() => route.hash, hash => {
   currentTab.value = hash === '#history-section' ? 'history' : 'dashboard'
 }, { immediate: true })
 
 // Estado de la evaluación desde backend
 const hasPreviousTest = ref(false)
+const hasPendingTest = ref(false)
 const bpmState = ref(null)
 const orientadorName = ref(null)
 const studentName = ref('')
-const studentInitials = computed(() => studentName.value.split(/\s+/).filter(Boolean)
-  .slice(0, 2).map(part => Array.from(part)[0]).join('').toUpperCase() || '—')
+
 const report = ref(null)
 const loading = ref(true)
 const loadError = ref('')
@@ -236,6 +216,7 @@ onMounted(async () => {
     const estado = estadoResult.value
     bpmState.value = estado.bpm_estado ?? null
     hasPreviousTest.value = estado.tiene_evaluacion && ['completada', 'procesada'].includes(estado.estado)
+    hasPendingTest.value = estado.tiene_evaluacion && estado.estado === 'en_progreso'
     orientadorName.value = estado.orientador_nombre
     
     timeline.value.registro = estado.registro_fecha
@@ -285,121 +266,6 @@ function logout() {
 </script>
 
 <style scoped>
-/* ── Infraestructura del layout en rejilla del Dashboard ────────────────── */
-.dashboard-layout {
-  --sidebar-w:  260px;
-  --c-bg:       #F8FAFC;
-  --c-surface:  #FFFFFF;
-  --c-primary:  #4F46E5;
-  --c-accent-completed: #10B981;
-  --c-text:     #0F172A;
-  --c-muted:    #64748B;
-  --c-border:   #E2E8F0;
-  --r-card:     16px;
-
-  min-height: 100vh;
-  background: var(--c-bg);
-  color: var(--c-text);
-  font-family: 'Inter', sans-serif;
-  display: flex;
-}
-
-/* ── Panel de Navegación Lateral (Sidebar) ───────────────────────────────── */
-.sidebar {
-  width: var(--sidebar-w);
-  background: var(--c-surface);
-  border-right: 1px solid var(--c-border);
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0; bottom: 0; left: 0;
-  padding: 32px 24px;
-  z-index: 50;
-}
-.sidebar__brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: 'Poppins', sans-serif;
-  font-weight: 800;
-  font-size: 1.3rem;
-  margin-bottom: 40px;
-}
-.sidebar__logo-icon { color: var(--c-primary); }
-
-.sidebar__nav {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-}
-.sidebar__link {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  color: var(--c-muted);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.2s;
-}
-.sidebar__link:hover, .sidebar__link--active {
-  background: #EEF2FF;
-  color: var(--c-primary);
-}
-.sidebar__icon { font-size: 1.1rem; }
-
-.sidebar__footer {
-  border-top: 1px solid var(--c-border);
-  padding-top: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.user-avatar-zone {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.avatar {
-  width: 40px; height: 40px;
-  background: #C7D2FE;
-  color: var(--c-primary);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.85rem;
-}
-.user-info { display: flex; flex-direction: column; text-align: left; }
-.user-name { font-weight: 600; font-size: 0.88rem; }
-.user-role { font-size: 0.75rem; color: var(--c-muted); }
-
-.logout-btn {
-  color: #EF4444;
-  text-decoration: none;
-  font-size: 0.85rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 8px;
-  transition: background 0.2s;
-}
-.logout-btn:hover { background: #FEF2F2; }
-
-/* ── Área de Contenido Principal ────────────────────────────────────────── */
-.main-content {
-  flex: 1;
-  margin-left: calc(var(--sidebar-w) + 32px); 
-  padding: 40px 48px;
-  max-width: 1100px;
-}
-
 /* ── Barra de Progreso Superior del Proceso de Negocio (BPM) ─────────────── */
 .bpm-progress-card {
   background: var(--c-surface);
@@ -411,6 +277,8 @@ function logout() {
 }
 .bpm-header {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
@@ -440,6 +308,7 @@ function logout() {
   align-items: center;
   position: relative;
   flex: 1;
+  min-width: 0;
 }
 .bpm-step__node {
   width: 32px; height: 32px;
@@ -460,6 +329,8 @@ function logout() {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--c-muted);
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 .bpm-step__line {
   position: absolute;
@@ -491,12 +362,12 @@ function logout() {
 .welcome-section { text-align: left; margin-bottom: 32px; }
 .welcome-title { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.8rem; margin-bottom: 4px; }
 .welcome-sub { font-size: 0.9rem; color: var(--c-muted); margin-bottom: 8px; }
-.welcome-orientador { font-size: 0.85rem; color: var(--c-primary); background: #EEF2FF; display: inline-block; padding: 4px 12px; border-radius: 100px; font-weight: 500; }
+.welcome-orientador { font-size: 0.85rem; color: var(--c-primary); background: #EEF2FF; display: inline-block; padding: 4px 12px; border-radius: 12px; font-weight: 500; overflow-wrap: anywhere; }
 
 /* ── Tarjetas Informativas y Dashboard Grid ─────────────────────────────── */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 24px;
   margin-bottom: 40px;
   align-items: stretch;
@@ -513,7 +384,7 @@ function logout() {
   position: relative;
   overflow: hidden;
 }
-.action-card__info { flex: 1; z-index: 2; }
+.action-card__info { flex: 1; min-width: 0; z-index: 2; overflow-wrap: anywhere; }
 .action-card__badge {
   display: inline-block;
   font-size: 0.72rem;
@@ -620,7 +491,9 @@ function logout() {
   margin-top: 4px;
   position: relative;
   z-index: 2;
+  flex-shrink: 0;
 }
+.timeline-content { min-width: 0; overflow-wrap: anywhere; }
 .timeline-dot--completed {
   background: var(--c-primary);
   box-shadow: 0 0 0 4px #EEF2FF;
@@ -664,25 +537,28 @@ function logout() {
 }
 
 /* Responsivo */
-.mobile-nav { display: none; }
-.mobile-nav button, .mobile-nav a {
-  border: 1px solid var(--c-border);
-  border-radius: 8px;
-  background: var(--c-surface);
-  color: var(--c-primary);
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 8px 10px;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-@media (max-width: 900px) {
-  .mobile-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-  .sidebar { display: none; }
-  .main-content { margin-left: 0; padding: 24px; }
+@media (max-width: 1200px) {
   .dashboard-grid { grid-template-columns: 1fr; }
-  .bpm-step__label { display: none; }
+  .info-sidebar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); height: auto; }
+}
+@media (max-width: 600px) {
+  .report-quick-stats { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  .bpm-progress-card, .action-card, .timeline-container { padding: 20px; }
+  .bpm-progress-card, .welcome-section { margin-bottom: 24px; }
+  .welcome-title { font-size: 1.5rem; }
+  .bpm-steps { flex-direction: column; align-items: stretch; gap: 16px; }
+  .bpm-step { flex-direction: row; gap: 12px; }
+  .bpm-step__node { flex-shrink: 0; }
+  .bpm-step__label { margin-top: 0; text-align: left; }
+  .bpm-step__line { left: 15px; top: 16px; width: 2px; height: calc(100% + 16px); }
+  .action-card { flex-direction: column; border-radius: var(--r-card); }
+  .action-card__visual { display: none; }
+  .action-card__title { font-size: 1.25rem; }
+  .action-card .btn { width: 100%; }
+  .info-sidebar { grid-template-columns: 1fr; }
+  .timeline-item { gap: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bpm-step__node, .btn { transition: none; }
 }
 </style>

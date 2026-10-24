@@ -1,10 +1,10 @@
 import axios from 'axios'
 
-// Cliente HTTP centralizado. Cuando el backend FastAPI esté disponible,
-// basta con definir VITE_API_BASE_URL en el archivo .env para que toda
-// la aplicación empiece a consumir datos reales sin tocar los componentes.
+// /api usa el mismo origen que la página, también al entrar desde un teléfono.
+// Vite reenvía estas peticiones al backend local durante el desarrollo.
+// VITE_API_BASE_URL permite indicar otra API en un despliegue propio.
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 10000,
 })
 
