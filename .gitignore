@@ -40,3 +40,20 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Python & caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+venv/
+.venv/
+backend/venv/
+
+# OS, temporary & Office lock files
+.directory
+Thumbs.db
+~$*.docx
+*.tmp
+
+# Local document generation helpers
+/scripts/
