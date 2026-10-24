@@ -7,6 +7,7 @@ import test from 'node:test'
 import { parse, compileTemplate } from '@vue/compiler-sfc'
 import { createSSRApp, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
+import { getBpmStatus } from '../../src/utils/bpmStatus.js'
 
 const filename = new URL('../../src/views/ReporteView.vue', import.meta.url)
 const { descriptor } = parse(readFileSync(filename, 'utf8'))
@@ -29,15 +30,19 @@ async function renderReport(isOrientador, careerAreas) {
   const app = createSSRApp({
     ssrRender,
     data: () => ({
-      isOrientador, careerAreas, loading: false, errorMessage: '',
+      isOrientador, careerAreas, loading: false, errorMessage: '', navigationItems: [],
+      bpmState: null, getBpmStatus,
       studentInitials: 'AP', displayedStudentName: 'Alumno Prueba', evaluatedAt: '24 de Sep, 2026',
-      expandedIndexes: [0], radarDimensions: [], radarGridPoints: [], radarAxes: [], radarDots: [],
+      expandedIndexes: [0], radarDimensions: [], radarGridPoints: [], radarAxes: [], radarLabelPoints: [], radarDots: [],
       hasRadarScores: false, dominantTraitLabel: `${dimension.name} (95%)`,
       dimensionsData: [{ ...dimension, score: 95, color: '#EF4444',
         vocationalImpact: 'Este puntaje por sí solo no permite inferir aptitud ni recomendar una profesión.' }]
     })
   })
+  app.config.globalProperties.logout = () => {}
   app.component('router-link', { props: ['to'], setup: (props, { slots }) => () => h('a', { href: props.to }, slots.default?.()) })
+  // Esta prueba cubre el contenido del reporte; la navegación se verifica en navegador.
+  app.component('DashboardNavigation', { render: () => null })
   return renderToString(app)
 }
 
