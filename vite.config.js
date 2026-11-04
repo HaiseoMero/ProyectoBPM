@@ -15,6 +15,7 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     strictPort: true,
+    allowedHosts: ['.trycloudflare.com'],
     proxy: {
       '/api': {
         target: process.env.VOCALIS_API_PROXY_TARGET || 'http://127.0.0.1:8000',
@@ -22,7 +23,12 @@ export default defineConfig({
       },
     },
   },
-  preview: { host: '127.0.0.1', port: 4173, strictPort: true },
+  preview: {
+    host: '127.0.0.1',
+    port: 4173,
+    strictPort: true,
+    allowedHosts: ['.trycloudflare.com'],
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
