@@ -549,6 +549,493 @@ export const AREAS = {
   }
 }
 
+// Catálogo extendido para las 12 Áreas de Estudio SIES (Motor Vocacional v2),
+// con fotografías dedicadas de resolución 960px en public/areas/ y enlaces de Mineduc.
+const todasLasCarreras = Object.values(AREAS).flatMap(a => a.carreras || [])
+function findCareer(name) {
+  return todasLasCarreras.find(c => c.nombre === name)
+}
+
+function buildCareer(nombre, descripcion, link, image) {
+  return {
+    nombre,
+    descripcion,
+    fuentes: [link || 'https://www.mifuturo.cl/buscador-de-carreras/'],
+    image,
+  }
+}
+
+Object.assign(AREAS, {
+  "Informática, Datos y TI": {
+    queSeEstudia: "Reúne disciplinas enfocadas en el desarrollo de software, ciencia de datos, inteligencia artificial, ciberseguridad e infraestructura digital para resolver problemas complejos en todo tipo de organizaciones.",
+    habilidades: ["Razonamiento lógico y algorítmico", "Programación y arquitectura de software", "Análisis de datos e IA", "Resolución metódica de problemas"],
+    campoLaboral: ["Empresas tecnológicas y startups", "Banca, retail y telecomunicaciones", "Consultoras de TI y ciberseguridad", "Centros de I+D y trabajo remoto global"],
+    image: {
+      file: "img/area-informatica-ti.jpg",
+      author: "SimonWaldherr",
+      license: "CC BY-SA 4.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+      source: "https://commons.wikimedia.org/wiki/File:CERN_Computer_Center_02.jpg"
+    },
+    carreras: [
+      { ...findCareer("Ingeniería Informática"), nombre: "Ingeniería Civil Informática" },
+      buildCareer(
+        "Ciencia de Datos e IA",
+        "Forma especialistas en modelamiento estadístico, aprendizaje automático y procesamiento de grandes volúmenes de datos.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=531&pagina=0",
+        {
+          file: "img/ciencia-de-datos-ia.jpg",
+          author: "Luis Llerena",
+          license: "CC0",
+          licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+          source: "https://commons.wikimedia.org/wiki/File:Analytics_graphs_on_a_MacBook_screen.jpg",
+          alt: "Gráficos de análisis de datos y visualización estadística en pantalla"
+        }
+      ),
+      buildCareer(
+        "Ciberseguridad",
+        "Prepara profesionales para proteger redes, sistemas e información crítica frente a amenazas digitales.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=480&pagina=0",
+        {
+          file: "img/ciberseguridad.jpg",
+          author: "Unknown photographer",
+          license: "Public domain",
+          licenseUrl: null,
+          source: "https://commons.wikimedia.org/wiki/File:NSOC-2012.jpg",
+          alt: "Centro de operaciones y monitoreo de seguridad informática"
+        }
+      ),
+      buildCareer(
+        "Analista Programador",
+        "Carrera técnica y profesional orientada a la construcción, prueba y mantención de aplicaciones web, móviles y empresariales.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=480&pagina=0",
+        {
+          file: "img/analista-programador.jpg",
+          author: "Crew",
+          license: "CC0",
+          licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+          source: "https://commons.wikimedia.org/wiki/File:Programmer_at_work_(Unsplash).jpg",
+          alt: "Desarrollador de software programando en computador portátil"
+        }
+      )
+    ]
+  },
+  "Ingeniería Civil, Minería y Obras": {
+    queSeEstudia: "Aborda el diseño, planificación, construcción y optimización de grandes proyectos de infraestructura, procesos industriales, energía y operaciones mineras.",
+    habilidades: ["Planificación y gestión de proyectos", "Cálculo estructural y modelamiento físico", "Liderazgo de equipos en terreno", "Toma de decisiones bajo estándares de seguridad"],
+    campoLaboral: ["Compañías mineras y energéticas", "Empresas constructoras y de obras públicas", "Industria manufacturera y logística", "Consultoras de ingeniería y ministerios"],
+    image: {
+      file: "img/area-ingenieria-mineria-obras.jpg",
+      author: "Alexander Gerst",
+      license: "CC BY-SA 2.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/2.0",
+      source: "https://commons.wikimedia.org/wiki/File:Chuquicamata_copper_mine_-_Chuquicamata-Kupfermine.jpg"
+    },
+    carreras: [
+      buildCareer(
+        "Ingeniería Civil en Minas",
+        "Forma profesionales para planificar, dirigir y optimizar la extracción y procesamiento sustentable de recursos minerales.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=501&pagina=0",
+        {
+          file: "img/ingenieria-civil-minas.jpg",
+          author: "James St. John",
+          license: "CC BY 2.0",
+          licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+          source: "https://commons.wikimedia.org/wiki/File:Haul_truck_(Continental_Mine,_Butte,_Montana,_USA)_2.jpg",
+          alt: "Camión minero de alto tonelaje operando en yacimiento a rajo abierto"
+        }
+      ),
+      buildCareer(
+        "Ingeniería Civil Industrial",
+        "Integra ciencias de la ingeniería con gestión de operaciones, logística, finanzas y estrategia organizacional.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=495&pagina=0",
+        {
+          file: "img/ingenieria-civil-industrial.jpg",
+          author: "KUKA Roboter GmbH, Bachmann",
+          license: "Public domain",
+          licenseUrl: null,
+          source: "https://commons.wikimedia.org/wiki/File:Factory_Automation_Robotics_Palettizing_Bread.jpg",
+          alt: "Línea de producción industrial automatizada con brazos robóticos"
+        }
+      ),
+      buildCareer(
+        "Construcción Civil",
+        "Prepara especialistas en la ejecución, dirección técnica y control de calidad de obras de edificación e infraestructura.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=156&pagina=0",
+        {
+          file: "img/construccion-civil.jpg",
+          author: "U.S. Air National Guard / Staff Sgt. Brandon Keys",
+          license: "Public domain",
+          licenseUrl: null,
+          source: "https://commons.wikimedia.org/wiki/File:134_Civil_Engineer_Airmen_Conduct_Site_Surveys_in_Korea_(9741411).jpg",
+          alt: "Equipo de ingeniería y construcción civil revisando mediciones en terreno"
+        }
+      ),
+      buildCareer(
+        "Ingeniería Civil Mecánica / Eléctrica",
+        "Se enfoca en el diseño de sistemas de generación eléctrica, automatización, maquinaria industrial y energías renovables.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=492&pagina=0",
+        {
+          file: "img/ingenieria-mecanica-electrica.jpg",
+          author: "Nelson Pérez",
+          license: "CC BY-SA 3.0",
+          licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
+          source: "https://commons.wikimedia.org/wiki/File:Canela_Baja,_Regi%C3%B3n_de_Coquimbo,_Chile_-_panoramio.jpg",
+          alt: "Aerogeneradores de parque eólico en Canela Baja, Región de Coquimbo, Chile"
+        }
+      )
+    ]
+  },
+  "Ciencias Básicas y Exactas": {
+    queSeEstudia: "Investiga las leyes fundamentales de la naturaleza, la materia, la vida y el universo mediante el método científico, la matemática avanzada y la experimentación en laboratorio u observatorios.",
+    habilidades: ["Pensamiento abstracto y matemático", "Método científico y trabajo de laboratorio", "Observación y análisis riguroso", "Investigación académica y aplicada"],
+    campoLaboral: ["Observatorios astronómicos y centros científicos", "Universidades e institutos de investigación", "Laboratorios biotecnológicos y farmacéuticos", "Sector ambiental, minero y de datos"],
+    image: AREAS["Tecnología, Ciencias Básicas y Agropecuaria"].image,
+    carreras: [
+      findCareer("Astronomía"),
+      findCareer("Biología"),
+      buildCareer(
+        "Física",
+        "Estudia las propiedades e interacciones fundamentales de la materia y la energía desde la escala cuántica hasta la cosmológica.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=658&pagina=0",
+        {
+          file: "img/fisica.jpg",
+          author: "Gavin Morley",
+          license: "CC BY-SA 4.0",
+          licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+          source: "https://commons.wikimedia.org/wiki/File:Attocube_table_GWMorley.jpg",
+          alt: "Mesa óptica con láser experimental en un laboratorio de física"
+        }
+      ),
+      buildCareer(
+        "Bioquímica",
+        "Analiza los procesos químicos y moleculares de los seres vivos con aplicaciones en salud, biotecnología y genética.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=108&pagina=0",
+        {
+          file: "img/bioquimica.jpg",
+          author: "Thctamm",
+          license: "CC BY-SA 3.0",
+          licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
+          source: "https://commons.wikimedia.org/wiki/File:Biokeemia_labori_laud.JPG",
+          alt: "Mesón de laboratorio de bioquímica con micropipetas e instrumental de análisis"
+        }
+      )
+    ]
+  },
+  "Salud y Terapias": {
+    queSeEstudia: "Estudia la prevención, diagnóstico, tratamiento y rehabilitación de la salud física y funcional de las personas, combinando ciencias biomédicas con atención clínica directa.",
+    habilidades: ["Razonamiento clínico y precisión", "Empatía y comunicación con pacientes", "Trabajo en equipos multidisciplinarios de salud", "Temple ante situaciones de urgencia"],
+    campoLaboral: ["Hospitales públicos y clínicas privadas", "Centros de salud familiar (CESFAM)", "Centros de rehabilitación y laboratorios", "Ejercicio clínico y programas de salud"],
+    image: AREAS["Salud (Gestión y Cuidados) y Agropecuaria"].image,
+    carreras: [
+      findCareer("Medicina"),
+      findCareer("Enfermería"),
+      findCareer("Kinesiología"),
+      findCareer("Tecnología Médica")
+    ]
+  },
+  "Agropecuaria, Veterinaria y Medioambiente": {
+    queSeEstudia: "Aborda el cuidado de la salud animal, la producción agroalimentaria sostenible y la conservación de los recursos naturales, bosques y ecosistemas marinos y terrestres.",
+    habilidades: ["Trabajo en terreno y contacto con la naturaleza", "Manejo de sistemas biológicos y productivos", "Gestión ambiental y sustentabilidad", "Diagnóstico veterinario y sanitario"],
+    campoLaboral: ["Clínicas y hospitales veterinarios", "Empresas agrícolas, frutícolas y forestales", "Organismos ambientales (CONAF, SAG, MMA)", "Centros de conservación y acuicultura"],
+    image: {
+      file: "img/area-agropecuaria-medioambiente.jpg",
+      author: "Delahimalaya-alosandes",
+      license: "CC BY-SA 4.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+      source: "https://commons.wikimedia.org/wiki/File:Araucaria_araucana,_Conguill%C3%ADo_National_Park,_Chile.jpg"
+    },
+    carreras: [
+      findCareer("Medicina Veterinaria"),
+      findCareer("Agronomía"),
+      buildCareer(
+        "Ingeniería Forestal",
+        "Forma profesionales para la conservación, manejo y restauración de bosques y ecosistemas silvestres.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=524&pagina=0",
+        {
+          file: "img/ingenieria-forestal.jpg",
+          author: "Rmmramos",
+          license: "CC BY-SA 4.0",
+          licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+          source: "https://commons.wikimedia.org/wiki/File:Measuring_Tree_Trunk_Circumference_During_Forest_Fieldwork.jpg",
+          alt: "Medición forestal del diámetro de un árbol en terreno"
+        }
+      ),
+      buildCareer(
+        "Biología Marina",
+        "Estudia la biodiversidad de los océanos y costas, el manejo de recursos hidrobiológicos y la conservación marina.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=106&pagina=0",
+        {
+          file: "img/biologia-marina.jpg",
+          author: "Ray Boland / NOAA/NMFS/PIFD/ESOD",
+          license: "Public domain",
+          licenseUrl: null,
+          source: "https://commons.wikimedia.org/wiki/File:Biological_Technician_Elizabeth_Keenan_swims_past_a_large_Porites_lobata_coralhead_while_conducting_algal_surveys_off_of_Guam_(reef324929763).jpg",
+          alt: "Bióloga marina realizando muestreo científico submarino en arrecife"
+        }
+      )
+    ]
+  },
+  "Administración, Negocios y Finanzas": {
+    queSeEstudia: "Se enfoca en la dirección de organizaciones, la economía, las finanzas, la contabilidad, el marketing y el comercio internacional para generar valor de forma sostenible.",
+    habilidades: ["Análisis económico y financiero", "Liderazgo y negociación comercial", "Planificación estratégica y control de gestión", "Toma de decisiones basada en indicadores"],
+    campoLaboral: ["Empresas privadas de todos los sectores", "Bancos, instituciones financieras y aseguradoras", "Firmas de auditoría y consultoría estratégica", "Emprendimientos y comercio internacional"],
+    image: AREAS["Administración, Comercio y Derecho"].image,
+    carreras: [
+      findCareer("Ingeniería Comercial"),
+      findCareer("Auditoría"),
+      buildCareer(
+        "Ingeniería en Control de Gestión",
+        "Se especializa en alinear la estrategia empresarial mediante indicadores de desempeño, presupuestos y análisis de procesos.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=512&pagina=0",
+        {
+          file: "img/control-de-gestion.jpg",
+          author: "rawpixel.com",
+          license: "CC0",
+          licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+          source: "https://commons.wikimedia.org/wiki/File:Finance_analytics_over_coffee_(Unsplash).jpg",
+          alt: "Revisión de indicadores financieros y tableros de control de gestión"
+        }
+      ),
+      buildCareer(
+        "Comercio Exterior",
+        "Gestiona operaciones de importación, exportación, logística internacional y normativa aduanera.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=141&pagina=0",
+        {
+          file: "img/comercio-exterior.jpg",
+          author: "Downtowngal",
+          license: "CC BY-SA 4.0",
+          licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+          source: "https://commons.wikimedia.org/wiki/File:Container_ship_NYK_Themis_at_the_Port_of_Los_Angeles.jpg",
+          alt: "Buque portacontenedores y grúas portuarias de comercio internacional"
+        }
+      )
+    ]
+  },
+  "Derecho y Gestión Pública": {
+    queSeEstudia: "Estudia el sistema jurídico, las leyes, las instituciones del Estado y el diseño y evaluación de políticas públicas para regular la convivencia social y fortalecer la gestión gubernamental.",
+    habilidades: ["Argumentación oral y redacción jurídica", "Interpretación de normas y pensamiento crítico", "Negociación y resolución de conflictos", "Gestión de políticas y servicios públicos"],
+    campoLaboral: ["Estudios jurídicos, tribunales y fiscalías", "Ministerios, municipalidades y servicios públicos", "Organismos reguladores y parlamento", "Departamentos legales de empresas y ONG"],
+    image: {
+      file: "img/area-derecho-gestion-publica.jpg",
+      author: "Felipe Restrepo Acosta",
+      license: "CC BY-SA 4.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+      source: "https://commons.wikimedia.org/wiki/File:2017_Santiago_de_Chile_-_Edificio_de_los_Tribunales_de_Justicia.jpg"
+    },
+    carreras: [
+      findCareer("Derecho"),
+      findCareer("Administración Pública"),
+      buildCareer(
+        "Ciencia Política",
+        "Analiza los sistemas políticos, las relaciones internacionales, el poder público y los procesos democráticos.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=133&pagina=0",
+        {
+          file: "img/ciencia-politica.jpg",
+          author: "Carlos Figueroa Rojas",
+          license: "CC BY-SA 4.0",
+          licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+          source: "https://commons.wikimedia.org/wiki/File:Edificio_del_Congreso_Nacional,_Valpara%C3%ADso_20230903_01.jpg",
+          alt: "Sede del Congreso Nacional de Chile en Valparaíso"
+        }
+      ),
+      buildCareer(
+        "Técnico Jurídico",
+        "Apoya la tramitación de causas judiciales, gestión notarial y elaboración de documentos legales.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=1458&pagina=0",
+        {
+          file: "img/tecnico-juridico.jpg",
+          author: "Energyme",
+          license: "CC BY-SA 4.0",
+          licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+          source: "https://commons.wikimedia.org/wiki/File:Books_on_Shelf_at_the_Ghalib_Chamber_Law_Library.jpg",
+          alt: "Estantería con compendios, códigos y repertorios jurídicos"
+        }
+      )
+    ]
+  },
+  "Educación y Pedagogías": {
+    queSeEstudia: "Aborda los procesos de enseñanza, aprendizaje y desarrollo integral en la infancia, adolescencia y adultez, incluyendo la inclusión educativa y el acompañamiento del lenguaje.",
+    habilidades: ["Comunicación pedagógica y liderazgo de aula", "Empatía, paciencia y escucha activa", "Diseño de experiencias de aprendizaje", "Trabajo colaborativo con familias y equipos"],
+    campoLaboral: ["Colegios, liceos e instituciones de educación", "Jardines infantiles y salas cuna", "Programas de integración escolar (PIE)", "Centros de diagnóstico y apoyo psicopedagógico"],
+    image: AREAS["Educación y Salud (Atención Comunitaria)"].image,
+    carreras: [
+      findCareer("Pedagogía"),
+      findCareer("Educación Parvularia"),
+      findCareer("Fonoaudiología"),
+      buildCareer(
+        "Educación Diferencial",
+        "Forma docentes especializados en inclusión educativa y apoyos para estudiantes con necesidades educativas especiales.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=782&pagina=0",
+        {
+          file: "img/educacion-diferencial.jpg",
+          author: "DFID",
+          license: "CC BY 2.0",
+          licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+          source: "https://commons.wikimedia.org/wiki/File:A_Lebanese_teacher_lends_a_hand_to_Syrian_children_in_Zaatari,_Jordan.jpg",
+          alt: "Docente acompañando de forma personalizada el aprendizaje en el aula"
+        }
+      )
+    ]
+  },
+  "Psicología y Ciencias Sociales": {
+    queSeEstudia: "Comprende el comportamiento humano, los procesos mentales, las dinámicas familiares y comunitarias y las estructuras sociales y culturales.",
+    habilidades: ["Escucha activa y entrevista clínica/social", "Empatía y ética en el acompañamiento", "Investigación cualitativa y cuantitativa", "Intervención comunitaria y organizacional"],
+    campoLaboral: ["Consultas psicológicas y centros de salud mental", "Programas sociales, municipios y fundaciones", "Áreas de desarrollo organizacional y convivencia escolar", "Centros de estudios sociales y universidades"],
+    image: AREAS["Ciencias Sociales y Humanidades"].image,
+    carreras: [
+      findCareer("Psicología"),
+      findCareer("Trabajo Social"),
+      findCareer("Sociología"),
+      findCareer("Antropología")
+    ]
+  },
+  "Comunicaciones, Turismo y Gastronomía": {
+    queSeEstudia: "Integra la creación y gestión de contenidos informativos, publicitarios y audiovisuales con la hospitalidad, la gastronomía y las experiencias culturales y turísticas.",
+    habilidades: ["Expresión oral, escrita y audiovisual", "Relacionamiento interpersonal y trabajo en red", "Creatividad aplicada a campañas y servicios", "Adaptabilidad en entornos dinámicos"],
+    campoLaboral: ["Medios de comunicación, productoras y agencias", "Áreas de comunicación corporativa y marketing", "Hotelería, operadores turísticos y eventos", "Restaurantes, proyectos gastronómicos y culturales"],
+    image: {
+      file: "img/area-comunicaciones-turismo.jpg",
+      author: "Alex Proimos from Sydney, Australia",
+      license: "CC BY 2.0",
+      licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+      source: "https://commons.wikimedia.org/wiki/File:On_the_Hill,_Valpara%C3%ADso_(Valparaiso),_Chile_(3927311373).jpg"
+    },
+    carreras: [
+      findCareer("Periodismo"),
+      findCareer("Relaciones Públicas"),
+      buildCareer(
+        "Publicidad",
+        "Diseña estrategias creativas, campañas multimediales y posicionamiento de marcas para conectar con distintos públicos.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=1004&pagina=0",
+        {
+          file: "img/publicidad.jpg",
+          author: "Ndahiro derrick",
+          license: "CC BY 4.0",
+          licenseUrl: "https://creativecommons.org/licenses/by/4.0",
+          source: "https://commons.wikimedia.org/wiki/File:WLM_international_team_meeting_in_Lagos_01.jpg",
+          alt: "Equipo creativo planificando una campaña de comunicación y publicidad"
+        }
+      ),
+      buildCareer(
+        "Gastronomía Internacional",
+        "Forma profesionales en artes culinarias, gestión de cocinas, patrimonio alimentario y administración gastronómica.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=26&pagina=0",
+        {
+          file: "img/gastronomia-internacional.jpg",
+          author: "Michael Browning",
+          license: "CC0",
+          licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+          source: "https://commons.wikimedia.org/wiki/File:Chefs_at_Work_(Unsplash).jpg",
+          alt: "Chefs preparando y emplatando platos en una cocina profesional"
+        }
+      )
+    ]
+  },
+  "Arte, Diseño y Arquitectura": {
+    queSeEstudia: "Explora la proyección de espacios habitables, el diseño visual e industrial y las artes escénicas, musicales y visuales, uniendo sensibilidad estética con oficio proyectual.",
+    habilidades: ["Creatividad e imaginación visual/espacial", "Representación gráfica, modelado y prototipado", "Sensibilidad estética y cultural", "Desarrollo de proyectos autorales y de diseño"],
+    campoLaboral: ["Oficinas de arquitectura y urbanismo", "Estudios de diseño gráfico, UX/UI e industrial", "Industrias creativas, animación y producción cultural", "Museos, centros culturales y ejercicio independiente"],
+    image: AREAS["Arte, Arquitectura y Humanidades (Comunicaciones)"].image,
+    carreras: [
+      findCareer("Arquitectura"),
+      findCareer("Diseño Gráfico"),
+      buildCareer(
+        "Artes Visuales",
+        "Desarrolla la creación artística contemporánea en pintura, escultura, grabado, fotografía, medios digitales y gestión cultural.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=61&pagina=0",
+        {
+          file: "img/artes-visuales.jpg",
+          author: "Mike Petrucci",
+          license: "CC0",
+          licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+          source: "https://commons.wikimedia.org/wiki/File:Mix_of_paints_(Unsplash).jpg",
+          alt: "Paleta de pintura artística y pinceles en taller de artes visuales"
+        }
+      ),
+      buildCareer(
+        "Animación Digital",
+        "Combina ilustración, narrativa audiovisual y modelado 2D/3D para cine, series, videojuegos y medios interactivos.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=49&pagina=0",
+        {
+          file: "img/animacion-digital.jpg",
+          author: "David Revoy",
+          license: "CC BY 4.0",
+          licenseUrl: "https://creativecommons.org/licenses/by/4.0",
+          source: "https://commons.wikimedia.org/wiki/File:Penciling_on_Wacom_Cintiq_13HD_by_David_Revoy.jpg",
+          alt: "Ilustración y animación digital sobre tableta gráfica interactiva"
+        }
+      )
+    ]
+  },
+  "Humanidades, Letras e Historia": {
+    queSeEstudia: "Profundiza en el pensamiento humano, los procesos históricos, la literatura, la filosofía, la lingüística y la mediación intercultural a través de las lenguas.",
+    habilidades: ["Lectura crítica y escritura argumentativa", "Investigación documental e histórica", "Análisis conceptual y filosófico", "Dominio de idiomas y traducción"],
+    campoLaboral: ["Universidades, archivos, bibliotecas y museos", "Editoriales, medios culturales y fundaciones", "Traducción, interpretación y organismos internacionales", "Docencia e investigación en humanidades"],
+    image: {
+      file: "img/area-humanidades-historia.jpg",
+      author: "Chofaska",
+      license: "CC BY-SA 3.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
+      source: "https://commons.wikimedia.org/wiki/File:Biblioteca_Nacional_de_Chile,_Santiago_Chile_(2012-09-30).jpg"
+    },
+    carreras: [
+      buildCareer(
+        "Licenciatura en Historia",
+        "Investiga y comprende los procesos sociales, políticos y culturales a lo largo del tiempo mediante el análisis de fuentes históricas.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=666&pagina=0",
+        {
+          file: "img/licenciatura-historia.jpg",
+          author: "Thomas Quine",
+          license: "CC BY 2.0",
+          licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+          source: "https://commons.wikimedia.org/wiki/File:Historical_Manuscripts_Commission_(40530477501).jpg",
+          alt: "Consulta de fuentes documentales y archivos históricos"
+        }
+      ),
+      buildCareer(
+        "Filosofía",
+        "Examina de forma crítica los problemas fundamentales del conocimiento, la ética, la lógica, la ciencia y la sociedad.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=664&pagina=0",
+        {
+          file: "img/filosofia.jpg",
+          author: "Joseolgon",
+          license: "CC BY 4.0",
+          licenseUrl: "https://creativecommons.org/licenses/by/4.0",
+          source: "https://commons.wikimedia.org/wiki/File:The_School_of_Athens-Vatican.jpg",
+          alt: "La Escuela de Atenas de Rafael, obra clásica alusiva a la filosofía"
+        }
+      ),
+      buildCareer(
+        "Literatura y Lingüística",
+        "Estudia la estructura del lenguaje humano y la creación literaria, formando investigadores, editores y críticos culturales.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=668&pagina=0",
+        {
+          file: "img/literatura-linguistica.jpg",
+          author: "Asturio Cantabrio",
+          license: "CC BY-SA 4.0",
+          licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+          source: "https://commons.wikimedia.org/wiki/File:Azumino_Public_Toyoshina_Library_reading_seats_ac_(2).jpg",
+          alt: "Sala de lectura y colecciones bibliográficas de literatura y humanidades"
+        }
+      ),
+      buildCareer(
+        "Traducción e Interpretación",
+        "Forma especialistas en mediación lingüística y traducción escrita u oral entre el español y otros idiomas.",
+        "https://www.mifuturo.cl/buscador-de-carreras/?tipo=carrera&find=crr&titulo=1560&pagina=0",
+        {
+          file: "img/traduccion-interpretacion.jpg",
+          author: "Cpl. John Lamb",
+          license: "Public domain",
+          licenseUrl: null,
+          source: "https://commons.wikimedia.org/wiki/File:Staff_planning_classes_120904-M-VK320-050.jpg",
+          alt: "Intérprete simultáneo trabajando con audífonos y micrófono en conferencia"
+        }
+      )
+    ]
+  }
+})
+
 // Quita el prefijo exploratorio que agrega el backend ("A modo exploratorio: X").
 export function careerName(value) {
   return String(value).replace(/^[^:]+:\s*/, '').trim()

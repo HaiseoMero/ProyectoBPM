@@ -8,7 +8,12 @@ from app.database import get_db
 from app.schemas.evaluacion import PreguntaOut, RespuestaIn, RespuestaOut, SubmitEvaluationRequest, SubmitEvaluationResponse, EstadoEvaluacion
 from app.models import Pregunta, Evaluacion, Respuesta, ReporteVocacional, Estudiante
 from app.utils.dependencies import require_estudiante
-from app.services.ocean_scorer import calculate_ocean_scores, get_dominant_dimensions
+from app.services.ocean_scorer import (
+    calculate_ocean_scores,
+    calcular_porcentajes_bfi44,
+    evaluar_perfil_vocacional,
+    get_dominant_dimensions,
+)
 from app.services.bpm_service import start_process, queue_cuestionario
 from app.services import bpm_service
 
@@ -101,7 +106,10 @@ async def submit_evaluation(request: SubmitEvaluationRequest, estudiante: Estudi
         raise HTTPException(status_code=422, detail="Debes responder exactamente las preguntas existentes del BFI-44")
 
     try:
-        scores = calculate_ocean_scores({orden: answers[pregunta_id] for pregunta_id, orden in preguntas})
+        respuestas_por_orden = {orden: answers[pregunta_id] for pregunta_id, orden in preguntas}
+        scores = calculate_ocean_scores(respuestas_por_orden)
+        porcentajes = calcular_porcentajes_bfi44(respuestas_por_orden)
+        perfil = evaluar_perfil_vocacional(porcentajes)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -115,10 +123,17 @@ async def submit_evaluation(request: SubmitEvaluationRequest, estudiante: Estudi
         else:
             db.add(Respuesta(evaluacion_id=evaluacion.id, pregunta_id=pregunta_id, valor=valor))
 
+    div = perfil["divisiones"]
     # Create Reporte
     reporte = ReporteVocacional(
         evaluacion_id=evaluacion.id,
-        scores_json=scores
+        scores_json=scores,
+        div_o=div["O"],
+        div_c=div["C"],
+        div_e=div["E"],
+        div_a=div["A"],
+        div_n=div["N"],
+        combinacion_id=perfil["combinacion_id"],
     )
     db.add(reporte)
     evaluacion.estado = "completada"

@@ -35,7 +35,8 @@ async function renderReport(isOrientador, careerAreas) {
       studentInitials: 'AP', displayedStudentName: 'Alumno Prueba', evaluatedAt: '24 de Sep, 2026',
       expandedIndexes: [0], radarDimensions: [], radarGridPoints: [], radarAxes: [], radarLabelPoints: [], radarDots: [],
       hasRadarScores: false, dominantTraitLabel: `${dimension.name} (95%)`,
-      dimensionsData: [{ ...dimension, score: 95, color: '#EF4444',
+      combinacionId: 769, codigoBase4: '30000', totalPosibilidades: 1024,
+      dimensionsData: [{ ...dimension, score: 95, division: 3, divisionLabel: 'Alto', color: '#EF4444',
         vocationalImpact: 'Este puntaje por sí solo no permite inferir aptitud ni recomendar una profesión.' }]
     })
   })

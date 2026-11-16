@@ -1,7 +1,8 @@
 import asyncio
 from sqlalchemy import select
 from app.database import async_session_maker
-from app.models import Pregunta
+from app.models import Pregunta, AreaEstudio
+from app.services.ocean_scorer import AREAS_CHILE
 
 PREGUNTAS = [
     (1, 'Es sociable, conversador y expresivo.', 'E', False),
@@ -67,9 +68,48 @@ async def seed_data() -> int:
         await db.commit()
         return len(PREGUNTAS)
 
+
+async def seed_areas_estudio() -> int:
+    """Cargar o sincronizar de forma no destructiva el catálogo de las 12 áreas de estudio de Chile (SIES)."""
+    async with async_session_maker() as db:
+        existing = {
+            area.slug: area
+            for area in (await db.scalars(select(AreaEstudio))).all()
+        }
+        inserted = 0
+        for item in AREAS_CHILE:
+            if item["slug"] in existing:
+                continue
+            db.add(
+                AreaEstudio(
+                    id=item["id"],
+                    slug=item["slug"],
+                    nombre=item["nombre"],
+                    area_sies=item["area_sies"],
+                    descripcion=item.get("descripcion", ""),
+                    ideal_o=item["ideal"]["O"],
+                    ideal_c=item["ideal"]["C"],
+                    ideal_e=item["ideal"]["E"],
+                    ideal_a=item["ideal"]["A"],
+                    ideal_n=item["ideal"]["N"],
+                    peso_o=item["pesos"]["O"],
+                    peso_c=item["pesos"]["C"],
+                    peso_e=item["pesos"]["E"],
+                    peso_a=item["pesos"]["A"],
+                    peso_n=item["pesos"]["N"],
+                    carreras_json=list(item["carreras_ejemplo"]),
+                )
+            )
+            inserted += 1
+        if inserted:
+            await db.commit()
+        return inserted
+
+
 async def main():
-    inserted = await seed_data()
-    print(f"Preguntas BFI-44 insertadas: {inserted}")
+    inserted_q = await seed_data()
+    inserted_a = await seed_areas_estudio()
+    print(f"Preguntas BFI-44 insertadas: {inserted_q} | Áreas SIES insertadas: {inserted_a}")
 
 if __name__ == "__main__":
     asyncio.run(main())

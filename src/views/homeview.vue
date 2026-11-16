@@ -9,7 +9,7 @@
       <div class="nav__links">
         <router-link to="/como-funciona">Cómo funciona</router-link>
         <router-link to="/el-test">El test</router-link>
-        <router-link to="/auth" class="nav__cta">Comenzar gratis</router-link>
+        <router-link to="/auth" class="nav__cta">Registrarse</router-link>
       </div>
     </nav>
 
@@ -299,7 +299,7 @@
               />
             </div>
             <button type="submit" class="btn btn--primary btn--full">
-              Crear mi cuenta gratis
+              Crear cuenta
               <span class="btn__arrow" aria-hidden="true">→</span>
             </button>
             <p class="register__hint">En el siguiente paso eliges tu rol y completas tus datos.</p>

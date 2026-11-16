@@ -198,7 +198,7 @@
           </div>
 
           <button type="submit" class="btn btn--primary btn--full" :disabled="loading">
-            {{ loading ? 'Procesando...' : (isLogin ? 'Iniciar Sesión' : 'Registrar mi cuenta gratis') }}
+            {{ loading ? 'Procesando...' : (isLogin ? 'Iniciar Sesión' : 'Registrar mi cuenta') }}
             <span v-if="!loading" class="btn__arrow" aria-hidden="true">→</span>
           </button>
         </form>

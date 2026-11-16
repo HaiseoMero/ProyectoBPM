@@ -226,7 +226,11 @@ async def test_all_three_endpoints_share_exact_report_contract(report_api):
         response = await client.get(path, headers=headers(user))
         assert response.status_code == 200
         body = response.json()
-        assert set(body) == {'studentName', 'bpm_estado', 'evaluatedAt', 'scores', 'dimensions', 'careerAreas'}
+        assert {
+            'studentName', 'bpm_estado', 'evaluatedAt', 'scores',
+            'divisiones', 'codigo_base4', 'combinacion_id', 'total_posibilidades',
+            'dimensions', 'careerAreas', 'ranking_completo',
+        }.issubset(set(body))
         assert ReporteOut.model_validate(body).model_dump() == body
         bodies.append(body)
     assert all(body == bodies[0] for body in bodies)
@@ -234,25 +238,25 @@ async def test_all_three_endpoints_share_exact_report_contract(report_api):
     assert body['studentName'] == 'Estudiante 1'
     assert body['evaluatedAt'] == REPORT_DATE.strftime('%d de %b, %Y')
     assert body['scores'] == SCORES
+    assert body['total_posibilidades'] == 1024
+    assert 1 <= body['combinacion_id'] <= 1024
     assert len(body['dimensions']) == 5
     assert {d['letter']: d['score'] for d in body['dimensions']} == {'O': 87, 'C': 75, 'E': 50, 'A': 37, 'N': 12}
     for dimension in body['dimensions']:
-        assert set(dimension) == {'letter', 'name', 'score', 'color', 'interpretation', 'vocationalImpact'}
+        assert {'letter', 'name', 'score', 'percentage', 'division', 'divisionLabel', 'color', 'interpretation', 'vocationalImpact'}.issubset(set(dimension))
         assert dimension['vocationalImpact'] == 'Este puntaje por sí solo no permite inferir aptitud ni recomendar una profesión.'
-    assert len(body['careerAreas']) == 1
-    assert body['careerAreas'][0]['title'] == 'Tecnología, Ciencias Básicas y Agropecuaria'
-    assert set(body['careerAreas'][0]) == {'title', 'desc', 'carreras'}
+    assert len(body['careerAreas']) == 3
+    assert len(body['ranking_completo']) == 12
+    assert body['careerAreas'][0]['title'] == 'Ciencias Básicas y Exactas'
     assert 'Referencia exploratoria' in body['careerAreas'][0]['desc']
-    assert body['careerAreas'][0]['carreras'] == [
-        'A modo exploratorio: Ingeniería Informática', 'Biología', 'Agronomía', 'Astronomía',
-    ]
+    assert body['careerAreas'][0]['afinidad_porcentaje'] > 80.0
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('scores,title', [
-    ({'O': 0.9, 'A': 0.8, 'E': 0.3, 'C': 0.2, 'N': 0.1}, 'Ciencias Sociales y Humanidades'),
-    ({'N': 0.95, 'O': 0.9, 'C': 0.8, 'A': 0.2, 'E': 0.1}, 'Tecnología, Ciencias Básicas y Agropecuaria'),
-    (dict.fromkeys('OCEAN', 0.5), 'Tecnología, Ciencias Básicas y Agropecuaria'),
+    ({'O': 0.82, 'C': 0.72, 'E': 0.62, 'A': 0.88, 'N': 0.28}, 'Psicología y Ciencias Sociales'),
+    ({'N': 0.28, 'O': 0.78, 'C': 0.78, 'A': 0.45, 'E': 0.35}, 'Informática, Datos y TI'),
+    (dict.fromkeys('OCEAN', 0.5), 'Arte, Diseño y Arquitectura'),
 ])
 async def test_exploratory_area_preserves_scores_and_contract_on_all_endpoints(report_api, scores, title):
     client, sessions = report_api
@@ -264,7 +268,7 @@ async def test_exploratory_area_preserves_scores_and_contract_on_all_endpoints(r
         response = await client.get(path, headers=headers(user))
         assert response.status_code == 200
         body = response.json()
-        assert len(body['careerAreas']) == 1
+        assert len(body['careerAreas']) == 3
         assert body['careerAreas'][0]['title'] == title
         assert body['scores'] == scores
         assert len(body['dimensions']) == 5

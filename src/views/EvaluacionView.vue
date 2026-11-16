@@ -73,7 +73,7 @@
         </div>
         <div class="likert-table-wrapper">
           <table class="likert-table">
-            <caption>Para cada afirmación: «Me considero una persona que…»</caption>
+            <caption>Para cada afirmación: «Me veo a mí mismo(a) como alguien que...»</caption>
             <thead>
               <tr>
                 <th class="col-question" scope="col">Afirmación</th>

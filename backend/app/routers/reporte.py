@@ -5,8 +5,12 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.schemas.reporte import ReporteOut, DimensionScore, CareerArea
 from app.models import ReporteVocacional, Evaluacion, Estudiante, Usuario, Curso, Orientador, ProcesoBPM
+from app.services.ocean_scorer import (
+    evaluar_perfil_vocacional,
+    obtener_division,
+    obtener_etiqueta_division,
+)
 from app.utils.dependencies import require_estudiante, get_current_user
-from datetime import datetime
 
 router = APIRouter(prefix="/evaluacion", tags=["Reporte Vocacional"])
 
@@ -67,7 +71,7 @@ DIMENSION_COLORS = {
     "N": "#EF4444"
 }
 
-# Asociaciones exploratorias del prototipo; no equivalen a evidencia de ajuste vocacional.
+# Asociaciones exploratorias clásicas por pares (conservadas por compatibilidad).
 CAREER_MATRIX = {
     ("O", "C"): CareerArea(
         title="Tecnología, Ciencias Básicas y Agropecuaria",
@@ -102,7 +106,6 @@ CAREER_MATRIX = {
 }
 
 def get_career_areas(scores: dict) -> list[CareerArea]:
-    # N no participa en la asignación exploratoria; los empates conservan el orden recibido.
     sorted_dims = sorted(
         ((letter, value) for letter, value in scores.items() if letter in {"O", "C", "E", "A"}),
         key=lambda item: item[1], reverse=True,
@@ -114,31 +117,59 @@ def get_career_areas(scores: dict) -> list[CareerArea]:
             return [area]
     return []
 
+
+def _to_career_area(item: dict) -> CareerArea:
+    return CareerArea(
+        area_id=item["area_id"],
+        slug=item["slug"],
+        title=item["nombre"],
+        area_sies=item["area_sies"],
+        afinidad_porcentaje=item["afinidad_porcentaje"],
+        desc=item.get("descripcion") or AREA_SCOPE,
+        carreras=list(item["carreras_ejemplo"]),
+    )
+
+
 def build_reporte_out(reporte: ReporteVocacional, student_name: str | None, bpm_estado: str | None = None) -> ReporteOut:
-    scores = reporte.scores_json
+    scores = reporte.scores_json or {}
+    perfil = evaluar_perfil_vocacional(scores)
+    porcentajes = perfil["puntajes"]
+
     dimensions = []
     for k, v in scores.items():
+        pct = porcentajes.get(k, round(float(v) * 100.0, 2) if float(v) <= 1.0 else round(float(v), 2))
+        score_int = int(v * 100) if float(v) <= 1.0 else int(v)
+        div = obtener_division(pct)
         dimensions.append(DimensionScore(
             letter=k,
             name=DIMENSION_NAMES.get(k, k),
-            score=int(v * 100),
+            score=score_int,
+            percentage=pct,
+            division=div,
+            divisionLabel=obtener_etiqueta_division(div),
             color=DIMENSION_COLORS.get(k, "#000000"),
-            interpretation=get_dimension_interpretation(k, int(v * 100)),
+            interpretation=get_dimension_interpretation(k, score_int),
             vocationalImpact=VOCATIONAL_SCOPE
         ))
-        
-    career_areas = get_career_areas(scores)
-    
-    # Just format date roughly
+
+    top_areas = [_to_career_area(item) for item in perfil["top_recomendaciones"]]
+    all_areas = [_to_career_area(item) for item in perfil["ranking_completo"]]
+
     dt_str = "Hoy" if not reporte.created_at else reporte.created_at.strftime("%d de %b, %Y")
-    
+    combinacion_id = reporte.combinacion_id if getattr(reporte, "combinacion_id", None) else perfil["combinacion_id"]
+
     return ReporteOut(
         studentName=student_name,
         bpm_estado=bpm_estado,
         evaluatedAt=dt_str,
         scores=scores,
+        divisiones=perfil["divisiones"],
+        codigo_base4=perfil["codigo_base4"],
+        combinacion_id=combinacion_id,
+        total_posibilidades=perfil["total_posibilidades"],
         dimensions=dimensions,
-        careerAreas=career_areas
+        careerAreas=top_areas,
+        ranking_completo=all_areas,
     )
 
 @router.get("/reporte", response_model=ReporteOut)
@@ -158,24 +189,28 @@ async def get_my_report(estudiante: Estudiante = Depends(require_estudiante), db
 async def get_report_by_id(reporte_id: int, current_user: Usuario = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     query = (
         select(ReporteVocacional, Estudiante.nombre_completo, ProcesoBPM.estado_actual)
-        .join(ReporteVocacional.evaluacion)
-        .join(Evaluacion.estudiante)
+        .join(Evaluacion, ReporteVocacional.evaluacion_id == Evaluacion.id)
+        .join(Estudiante, Evaluacion.estudiante_id == Estudiante.id)
         .outerjoin(ProcesoBPM, ProcesoBPM.evaluacion_id == Evaluacion.id)
         .where(ReporteVocacional.id == reporte_id)
     )
     if current_user.rol == "estudiante":
         query = query.where(Estudiante.usuario_id == current_user.id)
     elif current_user.rol == "orientador":
-        query = query.join(Estudiante.curso).join(Curso.orientador).where(
-            Orientador.usuario_id == current_user.id
+        query = (
+            query
+            .join(Curso, Estudiante.curso_id == Curso.id)
+            .join(Orientador, Curso.orientador_id == Orientador.id)
+            .where(
+                Orientador.usuario_id == current_user.id,
+                Curso.establecimiento == Orientador.establecimiento,
+            )
         )
     else:
-        raise HTTPException(status_code=403, detail="Acceso no autorizado")
-
-    result = await db.execute(query)
-    row = result.one_or_none()
-    if not row:
         raise HTTPException(status_code=404, detail="Reporte no encontrado")
 
+    row = (await db.execute(query)).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Reporte no encontrado")
     reporte, student_name, bpm_estado = row
     return build_reporte_out(reporte, student_name, bpm_estado)

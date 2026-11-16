@@ -8,9 +8,11 @@ from app.models.evaluacion import Evaluacion
 from app.models.respuesta import Respuesta
 from app.models.reporte import ReporteVocacional
 from app.models.proceso_bpm import ProcesoBPM
+from app.models.area_estudio import AreaEstudio
 
 __all__ = [
     "Usuario", "Curso", "Orientador", "Estudiante",
     "Pregunta", "Evaluacion", "Respuesta",
     "ReporteVocacional", "ProcesoBPM", "BPMEvento",
+    "AreaEstudio",
 ]

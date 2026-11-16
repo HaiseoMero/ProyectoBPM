@@ -9,7 +9,7 @@
       <div class="info-nav__links">
         <router-link to="/como-funciona" :aria-current="route.name === 'como-funciona' ? 'page' : undefined">Cómo funciona</router-link>
         <router-link to="/el-test" :aria-current="route.name === 'el-test' ? 'page' : undefined">El test</router-link>
-        <router-link to="/auth" class="info-nav__cta">Comenzar gratis</router-link>
+        <router-link to="/auth" class="info-nav__cta">Comenzar</router-link>
       </div>
     </nav>
 

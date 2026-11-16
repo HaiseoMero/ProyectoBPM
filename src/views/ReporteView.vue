@@ -76,6 +76,14 @@
               </div>
             </div>
 
+            <div v-if="combinacionId" class="combination-profile-badge">
+              <div class="badge-info">
+                <span class="badge-label">Combinación vocacional única (Base 4):</span>
+                <span class="badge-value">Perfil #{{ combinacionId }} de {{ (totalPosibilidades || 1024).toLocaleString('es-CL') }}</span>
+                <span v-if="codigoBase4" class="badge-subvalue">Código OCEAN (0–3): {{ codigoBase4 }}</span>
+              </div>
+            </div>
+
             <div class="reading-guide">
               <h4>Cómo leer tus porcentajes</h4>
               <ul>
@@ -106,6 +114,7 @@
                     <span class="accordion-name">{{ dim.name }}</span>
                   </span>
                   <span class="accordion-header__right">
+                    <span class="accordion-division-tag">{{ dim.divisionLabel || ['Bajo', 'Medio-Bajo', 'Medio-Alto', 'Alto'][Math.min(3, Math.floor((dim.score || 0) / 25))] }}</span>
                     <span class="accordion-score-tag">Puntaje: {{ dim.score }}%</span>
                     <span class="accordion-arrow" aria-hidden="true"></span>
                   </span>
@@ -148,7 +157,11 @@
           <header class="area-head" :class="{ 'area-head--image': area.info?.image }">
             <img v-if="area.info?.image" class="area-head__img" :src="area.info.image.src" alt="" loading="lazy" />
             <div class="area-head__body">
-              <p class="area-head__index">Área {{ areaIndex + 1 }} de {{ careerAreas.length }}</p>
+              <div class="area-head__meta">
+                <p class="area-head__index">Área {{ areaIndex + 1 }} de {{ careerAreas.length }}</p>
+                <span v-if="area.area_sies" class="area-head__sies">SIES: {{ area.area_sies }}</span>
+                <span v-if="area.afinidad_porcentaje != null" class="area-head__affinity">{{ area.afinidad_porcentaje }}% compatibilidad</span>
+              </div>
               <h3 class="career-card-title">{{ area.title }}</h3>
               <p class="career-card-desc">{{ area.desc }}</p>
             </div>
@@ -202,17 +215,9 @@
           </p>
         </article>
 
-        <div class="actionable-tips-card">
-          <div class="tips-content">
-            <h4>Resumen de resultados</h4>
-            <p v-if="careerAreas.length">
-              Áreas incluidas en este reporte: {{ careerAreas.map(area => area.title).join(', ') }}.
-              Los puntajes y las interpretaciones por dimensión se presentan arriba.
-            </p>
-            <p v-else>Las reglas actuales no permiten sugerir un área para esta combinación. Los puntajes OCEAN siguen disponibles.</p>
-            <p class="tips-note">Antes de decidir, conversa estas referencias con tu orientador y contrástalas con tus intereses, habilidades y experiencias.</p>
-          </div>
-        </div>
+        <p v-if="!careerAreas.length" class="section-sub-secondary">
+          Las reglas actuales no permiten sugerir un área para esta combinación. Los puntajes OCEAN siguen disponibles.
+        </p>
       </section>
       </template>
 
@@ -247,6 +252,9 @@ const evaluatedAt = ref('')
 const dimensionsData = ref([])
 const careerAreas = ref([])
 const bpmState = ref(null)
+const combinacionId = ref(null)
+const codigoBase4 = ref('')
+const totalPosibilidades = ref(1024)
 
 watch([isOrientador, () => route.params.studentId], async ([orientador, studentId], _, onCleanup) => {
   let cancelled = false
@@ -258,6 +266,8 @@ watch([isOrientador, () => route.params.studentId], async ([orientador, studentI
   dimensionsData.value = []
   careerAreas.value = []
   bpmState.value = null
+  combinacionId.value = null
+  codigoBase4.value = ''
   try {
     if (orientador && (!/^\d+$/.test(studentId || '') || Number(studentId) < 1)) {
       errorMessage.value = 'Identificador de estudiante inválido.'
@@ -273,6 +283,9 @@ watch([isOrientador, () => route.params.studentId], async ([orientador, studentI
     expandedIndexes.value = defaultExpanded(dimensionsData.value)
     careerAreas.value = (report.careerAreas || []).map(enrichCareerArea)
     bpmState.value = report.bpm_estado ?? null
+    combinacionId.value = report.combinacionId ?? null
+    codigoBase4.value = report.codigoBase4 ?? ''
+    totalPosibilidades.value = report.totalPosibilidades ?? 1024
   } catch (error) {
     if (cancelled) return
     const messages = {
@@ -348,16 +361,23 @@ const TRAIT_SCALE = {
   N: { low: 'Emocionalmente estable', high: 'Más sensible al estrés', infoId: 'neuroticismo' },
 }
 const OCEAN_ORDER = ['O', 'C', 'E', 'A', 'N']
+const DIVISION_LABELS = ['Bajo', 'Medio-Bajo', 'Medio-Alto', 'Alto']
 
 // Presenta las dimensiones siempre en orden OCEAN, sin depender del orden del JSON.
 function orderDimensions(dimensions = []) {
   return [...dimensions]
     .sort((a, b) => OCEAN_ORDER.indexOf(a.letter) - OCEAN_ORDER.indexOf(b.letter))
-    .map(dim => ({
-      ...TRAIT_SCALE[dim.letter],
-      ...dim,
-      pct: Math.max(0, Math.min(100, Number(dim.score) || 0)),
-    }))
+    .map(dim => {
+      const pct = Math.max(0, Math.min(100, Number(dim.score) || 0))
+      const division = dim.division ?? Math.min(3, Math.floor(pct / 25))
+      return {
+        ...TRAIT_SCALE[dim.letter],
+        ...dim,
+        pct,
+        division,
+        divisionLabel: dim.divisionLabel || DIVISION_LABELS[division] || 'Bajo',
+      }
+    })
 }
 
 function defaultExpanded(dimensions) {
@@ -441,9 +461,11 @@ function logout() {
 .radar-legend__letter { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--c-tint); color: var(--c-primary); font-family: 'Poppins', sans-serif; font-weight: 700; }
 
 .dominant-profile-badge { display: flex; align-items: center; gap: 12px; background: var(--c-tint); border: 1px solid var(--c-tint-border); border-left: 4px solid var(--c-accent2); padding: 14px 16px; border-radius: 12px; margin-top: 8px; }
+.combination-profile-badge { display: flex; align-items: center; gap: 12px; background: var(--c-bg); border: 1px solid var(--c-border); border-left: 4px solid var(--c-primary); padding: 12px 16px; border-radius: 12px; margin-top: 10px; }
 .badge-info { display: flex; flex-direction: column; gap: 2px; }
 .badge-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--c-primary); }
-.badge-value { font-size: 0.95rem; font-weight: 700; color: var(--c-text); }
+.badge-value { font-size: 0.95rem; font-weight: 700; color: var(--c-text); font-variant-numeric: tabular-nums; }
+.badge-subvalue { font-size: 0.78rem; color: var(--c-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 .reading-guide { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--c-border); }
 .reading-guide h4 { font-family: 'Poppins', sans-serif; font-size: 0.85rem; font-weight: 700; margin-bottom: 10px; }
@@ -461,7 +483,8 @@ function logout() {
 .accordion-header__left { display: flex; min-width: 0; align-items: center; gap: 12px; }
 .accordion-letter { display: inline-grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; color: var(--trait); background: color-mix(in srgb, var(--trait) 10%, #FFFFFF); font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1rem; }
 .accordion-name { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1rem; letter-spacing: -0.01em; transition: color 0.15s; }
-.accordion-header__right { display: flex; align-items: center; gap: 14px; }
+.accordion-header__right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.accordion-division-tag { font-size: 0.74rem; font-weight: 700; color: var(--trait); background: color-mix(in srgb, var(--trait) 12%, #FFFFFF); border: 1px solid color-mix(in srgb, var(--trait) 28%, #FFFFFF); padding: 2px 9px; border-radius: 100px; }
 .accordion-score-tag { font-size: 0.82rem; color: var(--c-text-soft); font-weight: 600; font-variant-numeric: tabular-nums; }
 .accordion-arrow { width: 8px; height: 8px; border-right: 2px solid var(--c-muted); border-bottom: 2px solid var(--c-muted); transform: rotate(45deg) translateY(-2px); transition: transform 0.2s; margin-right: 6px; }
 .accordion-item--expanded .accordion-arrow { transform: rotate(-135deg) translateY(-2px); border-color: var(--c-primary); }
@@ -492,7 +515,10 @@ function logout() {
 /* Velo para leer el texto sobre la fotografía */
 .area-head--image::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6, 78, 59, 0.15) 0%, rgba(6, 78, 59, 0.92) 78%); }
 .area-head__body { position: relative; z-index: 1; max-width: 760px; }
-.area-head__index { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #BEF264; margin-bottom: 8px; }
+.area-head__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; }
+.area-head__index { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #BEF264; margin: 0; }
+.area-head__sies { font-size: 0.72rem; font-weight: 600; color: #ECFDF5; background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.24); padding: 2px 10px; border-radius: 100px; }
+.area-head__affinity { font-size: 0.74rem; font-weight: 700; color: #064E3B; background: #BEF264; padding: 2px 10px; border-radius: 100px; font-variant-numeric: tabular-nums; }
 .career-card-title { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: clamp(1.25rem, 2.4vw, 1.6rem); line-height: 1.2; letter-spacing: -0.02em; color: #FFFFFF; margin-bottom: 10px; }
 .career-card-desc { font-size: 0.92rem; line-height: 1.6; color: #D1FAE5; }
 
@@ -524,12 +550,6 @@ function logout() {
 .area-credits { padding: 0 28px 20px; font-size: 0.7rem; line-height: 1.6; color: var(--c-muted); }
 .area-credits a { color: inherit; }
 
-.actionable-tips-card { display: flex; gap: 20px; background: var(--c-warning-bg); border: 1px solid var(--c-warning-border); border-left: 4px solid #F59E0B; border-radius: var(--r-card); padding: 24px 28px; align-items: flex-start; }
-.tips-content h4 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1rem; color: var(--c-warning); margin-bottom: 6px; }
-.tips-content p { font-size: 0.9rem; line-height: 1.6; color: #78350F; }
-.tips-content .tips-note { margin-top: 8px; font-size: 0.85rem; }
-.tips-content { min-width: 0; overflow-wrap: anywhere; }
-
 @media (max-width: 1200px) {
   .report-grid { grid-template-columns: 1fr; }
   .report-visual-card { position: static; }
@@ -544,7 +564,7 @@ function logout() {
   .radar__label-box { display: none; }
   .radar__axis-letter { display: block; }
   .radar-legend { display: grid; }
-  .bpm-progress-card, .report-visual-card, .actionable-tips-card { padding: 20px; border-radius: var(--r-card); }
+  .bpm-progress-card, .report-visual-card { padding: 20px; border-radius: var(--r-card); }
   .report-text-card { padding: 20px 16px 8px; border-radius: var(--r-card); }
   .accordion-header { padding: 12px 0 8px; }
   .accordion-header__left { gap: 10px; }
