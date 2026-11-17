@@ -56,28 +56,13 @@
 .info-title { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: clamp(2.1rem, 4.6vw, 3.8rem); line-height: 1.08; letter-spacing: -.035em; max-width: 850px; }
 /* Subrayado tipo marcador, igual que en la portada */
 .info-title em { font-style: normal; color: var(--c-primary); background: linear-gradient(transparent 64%, rgba(132, 204, 22, .38) 64%, rgba(132, 204, 22, .38) 92%, transparent 92%); -webkit-box-decoration-break: clone; box-decoration-break: clone; padding: 0 .04em; }
-/* Destacado de palabras clave en descripciones */
+/* Palabras clave en negrita (bold) dentro de las descripciones */
 .info-page .kw {
   font-weight: 700;
-  color: var(--c-primary-strong);
-  background: linear-gradient(180deg, transparent 54%, rgba(132, 204, 22, .32) 54%, rgba(132, 204, 22, .32) 92%, transparent 92%);
-  padding: 0 .14em;
-  border-radius: 3px;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-}
-.info-page .info-trait .kw {
-  color: var(--dimension-color);
-  background: color-mix(in srgb, var(--dimension-color) 14%, transparent);
-  padding: .05em .3em;
-  border-radius: 5px;
+  color: var(--c-text);
 }
 .info-page .info-cta .kw {
   color: #FFFFFF;
-  background: rgba(190, 242, 100, .2);
-  border-bottom: 2px solid #BEF264;
-  padding: 0 .18em;
-  border-radius: 3px;
 }
 .info-lead { margin-top: 24px; font-size: 1.075rem; line-height: 1.75; color: #475569; max-width: 730px; }
 .info-facts { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }

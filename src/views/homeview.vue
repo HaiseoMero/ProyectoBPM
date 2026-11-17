@@ -717,37 +717,14 @@ function handleRegister() {
   padding: 0 0.04em;
 }
 
-/* Destacado de palabras clave en descripciones */
+/* Palabras clave en negrita (bold) dentro de las descripciones */
 .kw {
   font-weight: 700;
-  color: var(--c-primary-strong);
-  background: linear-gradient(180deg, transparent 54%, rgba(132, 204, 22, 0.32) 54%, rgba(132, 204, 22, 0.32) 92%, transparent 92%);
-  padding: 0 0.14em;
-  border-radius: 3px;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-}
-
-.ocean-card .kw {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  padding: 0.05em 0.3em;
-  border-radius: 5px;
-}
-
-.scope__col--not .kw {
   color: var(--c-text);
-  background: rgba(148, 163, 184, 0.24);
-  padding: 0.04em 0.24em;
-  border-radius: 4px;
 }
 
 .register .kw {
   color: #FFFFFF;
-  background: rgba(190, 242, 100, 0.2);
-  border-bottom: 2px solid #BEF264;
-  padding: 0 0.18em;
-  border-radius: 3px;
 }
 
 .hero__sub {
