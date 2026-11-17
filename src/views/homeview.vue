@@ -28,8 +28,8 @@
           </h1>
 
           <p class="hero__sub">
-            Explora tus rasgos de personalidad con el BFI-44 y comparte tus resultados
-            con tu orientador. Un apoyo para reflexionar sobre tu futuro, junto con tus intereses y experiencias.
+            Explora tus <strong class="kw">rasgos de personalidad</strong> con el <strong class="kw">BFI-44</strong> y comparte tus resultados
+            con tu orientador. Un apoyo para <strong class="kw">reflexionar sobre tu futuro</strong>, junto con tus <strong class="kw">intereses y experiencias</strong>.
           </p>
 
           <div class="hero__actions">
@@ -89,7 +89,7 @@
           </div>
 
           <p class="hero__visual-note">
-            Cada dimensión es un continuo. No hay perfiles mejores ni peores, solo formas distintas de ser.
+            Cada dimensión es un continuo. <strong class="kw">No hay perfiles mejores ni peores</strong>, solo <strong class="kw">formas distintas de ser</strong>.
           </p>
         </div>
       </div>
@@ -102,8 +102,8 @@
           <p class="section__eyebrow">Para quién es</p>
           <h2 id="audience-title" class="section__title">Una herramienta,<br />dos miradas.</h2>
           <p class="section__lead">
-            Vócalis conecta lo que cada estudiante descubre de sí mismo con el acompañamiento
-            que ya ocurre en la orientación escolar.
+            Vócalis conecta lo que cada estudiante <strong class="kw">descubre de sí mismo</strong> con el <strong class="kw">acompañamiento</strong>
+            que ya ocurre en la <strong class="kw">orientación escolar</strong>.
           </p>
         </header>
 
@@ -121,7 +121,12 @@
               </div>
             </div>
             <ul class="audience-card__list">
-              <li v-for="item in group.items" :key="item">{{ item }}</li>
+              <li v-for="item in group.items" :key="item">
+                <template v-for="(seg, idx) in parseHighlights(item)" :key="idx">
+                  <strong v-if="seg.kw" class="kw">{{ seg.text }}</strong>
+                  <template v-else>{{ seg.text }}</template>
+                </template>
+              </li>
             </ul>
           </article>
         </div>
@@ -145,7 +150,12 @@
           <li class="step-card" v-for="step in steps" :key="step.n">
             <span class="step-card__num" aria-hidden="true">{{ step.n }}</span>
             <h3 class="step-card__title">{{ step.title }}</h3>
-            <p class="step-card__desc">{{ step.desc }}</p>
+            <p class="step-card__desc">
+              <template v-for="(seg, idx) in parseHighlights(step.desc)" :key="idx">
+                <strong v-if="seg.kw" class="kw">{{ seg.text }}</strong>
+                <template v-else>{{ seg.text }}</template>
+              </template>
+            </p>
           </li>
         </ol>
       </div>
@@ -158,12 +168,12 @@
           <p class="section__eyebrow">Las dimensiones de personalidad</p>
           <h2 id="ocean-title" class="section__title">El Big Five<br />OCEAN.</h2>
           <p class="ocean__intro">
-            El modelo Big Five describe cinco dimensiones de personalidad. En Vócalis,
-            estos resultados aportan una perspectiva para conversar sobre cómo te describes y lo que te interesa.
+            El modelo Big Five describe <strong class="kw">cinco dimensiones de personalidad</strong>. En Vócalis,
+            estos resultados aportan una <strong class="kw">perspectiva para conversar</strong> sobre cómo te describes y <strong class="kw">lo que te interesa</strong>.
           </p>
           <p class="ocean__hint">
-            Cada rasgo va de un extremo a otro. Tu resultado indica hacia dónde tiendes,
-            no si está bien o mal.
+            Cada rasgo va de un extremo a otro. Tu resultado indica <strong class="kw">hacia dónde tiendes</strong>,
+            <strong class="kw">no si está bien o mal</strong>.
           </p>
           <router-link to="/el-test" class="text-link">
             Conocer cada dimensión en detalle <span aria-hidden="true">→</span>
@@ -180,7 +190,12 @@
             <span class="ocean-card__letter" aria-hidden="true">{{ dim.letter }}</span>
             <div class="ocean-card__body">
               <h3 class="ocean-card__name">{{ dim.name }}</h3>
-              <p class="ocean-card__desc">{{ dim.desc }}</p>
+              <p class="ocean-card__desc">
+                <template v-for="(seg, idx) in parseHighlights(dim.desc)" :key="idx">
+                  <strong v-if="seg.kw" class="kw">{{ seg.text }}</strong>
+                  <template v-else>{{ seg.text }}</template>
+                </template>
+              </p>
               <p class="ocean-card__scale">
                 <span class="visually-hidden">Va desde </span>
                 <span class="ocean-card__pole">{{ dim.low }}</span>
@@ -201,8 +216,8 @@
           <p class="section__eyebrow">Tu reporte</p>
           <h2 id="report-title" class="section__title">Tus resultados.<br />Un punto de partida.</h2>
           <p class="section__lead">
-            Al terminar el cuestionario recibes un reporte que puedes consultar desde tu cuenta
-            y revisar junto a tu orientador.
+            Al terminar el cuestionario recibes un <strong class="kw">reporte que puedes consultar</strong> desde tu cuenta
+            y <strong class="kw">revisar junto a tu orientador</strong>.
           </p>
         </header>
 
@@ -214,7 +229,12 @@
               </svg>
             </span>
             <h3 class="report-card__title">{{ card.title }}</h3>
-            <p class="report-card__desc">{{ card.desc }}</p>
+            <p class="report-card__desc">
+              <template v-for="(seg, idx) in parseHighlights(card.desc)" :key="idx">
+                <strong v-if="seg.kw" class="kw">{{ seg.text }}</strong>
+                <template v-else>{{ seg.text }}</template>
+              </template>
+            </p>
           </article>
         </div>
       </div>
@@ -234,7 +254,12 @@
             <ul class="scope__list">
               <li v-for="item in scopeIs" :key="item">
                 <svg class="scope__mark" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10.5l3.2 3.2L15 6.8" /></svg>
-                <span>{{ item }}</span>
+                <span>
+                  <template v-for="(seg, idx) in parseHighlights(item)" :key="idx">
+                    <strong v-if="seg.kw" class="kw">{{ seg.text }}</strong>
+                    <template v-else>{{ seg.text }}</template>
+                  </template>
+                </span>
               </li>
             </ul>
           </div>
@@ -243,7 +268,12 @@
             <ul class="scope__list">
               <li v-for="item in scopeNot" :key="item">
                 <svg class="scope__mark" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 10h8" /></svg>
-                <span>{{ item }}</span>
+                <span>
+                  <template v-for="(seg, idx) in parseHighlights(item)" :key="idx">
+                    <strong v-if="seg.kw" class="kw">{{ seg.text }}</strong>
+                    <template v-else>{{ seg.text }}</template>
+                  </template>
+                </span>
               </li>
             </ul>
           </div>
@@ -258,12 +288,12 @@
           <p class="section__eyebrow section__eyebrow--on-dark">Empieza hoy</p>
           <h2 id="register-title" class="register__title">Tu perfil te está esperando.</h2>
           <p class="register__sub">
-            Crea tu cuenta y responde 44 afirmaciones para empezar a reflexionar. Vócalis complementa el acompañamiento de tu orientador.
+            Crea tu cuenta y responde <strong class="kw">44 afirmaciones</strong> para empezar a reflexionar. Vócalis complementa el <strong class="kw">acompañamiento de tu orientador</strong>.
           </p>
           <ul class="register__facts">
-            <li>Sin costo para estudiantes</li>
-            <li>Desde tu computador o teléfono</li>
-            <li>Tus respuestas se guardan mientras avanzas</li>
+            <li><span><strong class="kw">Sin costo</strong> para estudiantes</span></li>
+            <li><span>Desde tu <strong class="kw">computador o teléfono</strong></span></li>
+            <li><span>Tus respuestas <strong class="kw">se guardan mientras avanzas</strong></span></li>
           </ul>
         </div>
 
@@ -338,6 +368,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { parseHighlights } from '../utils/highlightText'
 
 defineOptions({ name: 'HomeView' })
 
@@ -451,9 +482,9 @@ const audiences = [
     title: 'Un espacio para mirarte con calma',
     icon: 'M12 12a4 4 0 1 0 0-8a4 4 0 1 0 0 8z M4.5 20.5c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5',
     items: [
-      'Respondes 44 afirmaciones a tu ritmo, desde tu computador o teléfono.',
-      'Puedes pausar y continuar después: tus respuestas quedan guardadas.',
-      'Recibes un reporte con tu perfil en las cinco dimensiones.',
+      'Respondes **44 afirmaciones a tu ritmo**, desde tu computador o teléfono.',
+      'Puedes **pausar y continuar después**: tus respuestas **quedan guardadas**.',
+      'Recibes un **reporte con tu perfil** en las **cinco dimensiones**.',
     ],
   },
   {
@@ -462,44 +493,44 @@ const audiences = [
     title: 'Contexto para cada conversación',
     icon: 'M9 11a3.5 3.5 0 1 0 0-7a3.5 3.5 0 1 0 0 7z M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6 M16 4.3a3.5 3.5 0 0 1 0 6.4 M18 14.4c2.1.7 3.5 2.7 3.5 5.6',
     items: [
-      'Asignas los cursos que acompañas y ves a sus estudiantes en un solo panel.',
-      'Sigues en qué etapa está cada estudiante: registro, cuestionario o reporte listo.',
-      'Consultas los reportes para preparar entrevistas de orientación.',
+      'Asignas los cursos que acompañas y ves a sus estudiantes en **un solo panel**.',
+      'Sigues **en qué etapa está cada estudiante**: registro, cuestionario o **reporte listo**.',
+      'Consultas los reportes para preparar **entrevistas de orientación**.',
     ],
   },
 ]
 
 const steps = [
-  { n: '01', title: 'Responde el test', desc: 'Contesta 44 afirmaciones simples sobre cómo piensas, sientes y actúas. Sin respuestas incorrectas.' },
-  { n: '02', title: 'Conoce tu perfil', desc: 'El sistema calcula tus puntuaciones en las 5 dimensiones OCEAN y genera tu radar de personalidad.' },
-  { n: '03', title: 'Reflexiona con tu orientador', desc: 'Revisa tus resultados y explora tus intereses junto con tu orientador. Elegir tu camino requiere también conocer tus habilidades, experiencias y opciones.' },
+  { n: '01', title: 'Responde el test', desc: 'Contesta **44 afirmaciones simples** sobre cómo **piensas, sientes y actúas**. **Sin respuestas incorrectas**.' },
+  { n: '02', title: 'Conoce tu perfil', desc: 'El sistema calcula tus puntuaciones en las **5 dimensiones OCEAN** y genera tu **radar de personalidad**.' },
+  { n: '03', title: 'Reflexiona con tu orientador', desc: 'Revisa tus resultados y **explora tus intereses** junto con tu orientador. Elegir tu camino requiere también conocer tus **habilidades, experiencias y opciones**.' },
 ]
 
 const dimensions = [
-  { letter: 'O', name: 'Apertura', desc: 'Creatividad, curiosidad intelectual y gusto por las nuevas experiencias.', color: '#4F46E5', low: 'Prefiere lo conocido', high: 'Busca lo nuevo' },
-  { letter: 'C', name: 'Responsabilidad', desc: 'Organización, disciplina y orientación al logro de metas.', color: '#10B981', low: 'Flexible y espontáneo', high: 'Organizado y metódico' },
-  { letter: 'E', name: 'Extraversión', desc: 'Sociabilidad, energía y comodidad en entornos grupales.', color: '#F59E0B', low: 'Reservado', high: 'Sociable' },
-  { letter: 'A', name: 'Amabilidad', desc: 'Empatía, cooperación y disposición a ayudar a los demás.', color: '#EC4899', low: 'Directo y crítico', high: 'Cooperativo y empático' },
-  { letter: 'N', name: 'Neuroticismo', desc: 'Respuesta emocional y gestión del estrés y la ansiedad.', color: '#EF4444', low: 'Emocionalmente estable', high: 'Más sensible al estrés' },
+  { letter: 'O', name: 'Apertura', desc: '**Creatividad**, **curiosidad intelectual** y gusto por las **nuevas experiencias**.', color: '#4F46E5', low: 'Prefiere lo conocido', high: 'Busca lo nuevo' },
+  { letter: 'C', name: 'Responsabilidad', desc: '**Organización**, **disciplina** y orientación al **logro de metas**.', color: '#10B981', low: 'Flexible y espontáneo', high: 'Organizado y metódico' },
+  { letter: 'E', name: 'Extraversión', desc: '**Sociabilidad**, **energía** y comodidad en **entornos grupales**.', color: '#F59E0B', low: 'Reservado', high: 'Sociable' },
+  { letter: 'A', name: 'Amabilidad', desc: '**Empatía**, **cooperación** y disposición a **ayudar a los demás**.', color: '#EC4899', low: 'Directo y crítico', high: 'Cooperativo y empático' },
+  { letter: 'N', name: 'Neuroticismo', desc: '**Respuesta emocional** y **gestión del estrés** y la ansiedad.', color: '#EF4444', low: 'Emocionalmente estable', high: 'Más sensible al estrés' },
 ]
 
 const reportFeatures = [
-  { title: 'Gráfico radar OCEAN', desc: 'Consulta tus puntajes en las cinco dimensiones de personalidad en un mismo gráfico.', icon: 'M12 3l8.5 6.2-3.2 10H6.7L3.5 9.2z M12 3v9 M20.5 9.2L12 12 M17.3 19.2L12 12 M6.7 19.2L12 12 M3.5 9.2L12 12' },
-  { title: 'Texto interpretativo', desc: 'Lee descripciones de las tendencias que reflejan tus respuestas para apoyar tu reflexión.', icon: 'M4 6h16 M4 10h16 M4 14h11 M4 18h7' },
-  { title: 'Áreas para explorar', desc: 'Referencias exploratorias del prototipo para investigar y conversar. No son una medida de afinidad profesional.', icon: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M15.5 8.5l-2 5-5 2 2-5z' },
-  { title: 'Acompañamiento del orientador', desc: 'Tu orientador asignado puede consultar tu avance y tus resultados para apoyar el seguimiento.', icon: 'M9 11a3.5 3.5 0 1 0 0-7a3.5 3.5 0 1 0 0 7z M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6 M16 4.3a3.5 3.5 0 0 1 0 6.4 M18 14.4c2.1.7 3.5 2.7 3.5 5.6' },
+  { title: 'Gráfico radar OCEAN', desc: 'Consulta tus **puntajes en las cinco dimensiones** de personalidad en **un mismo gráfico**.', icon: 'M12 3l8.5 6.2-3.2 10H6.7L3.5 9.2z M12 3v9 M20.5 9.2L12 12 M17.3 19.2L12 12 M6.7 19.2L12 12 M3.5 9.2L12 12' },
+  { title: 'Texto interpretativo', desc: 'Lee descripciones de las **tendencias que reflejan tus respuestas** para apoyar tu **reflexión**.', icon: 'M4 6h16 M4 10h16 M4 14h11 M4 18h7' },
+  { title: 'Áreas para explorar', desc: '**Referencias exploratorias** del prototipo para **investigar y conversar**. No son una medida de afinidad profesional.', icon: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M15.5 8.5l-2 5-5 2 2-5z' },
+  { title: 'Acompañamiento del orientador', desc: 'Tu **orientador asignado** puede consultar tu avance y tus resultados para **apoyar el seguimiento**.', icon: 'M9 11a3.5 3.5 0 1 0 0-7a3.5 3.5 0 1 0 0 7z M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6 M16 4.3a3.5 3.5 0 0 1 0 6.4 M18 14.4c2.1.7 3.5 2.7 3.5 5.6' },
 ]
 
 const scopeIs = [
-  'Un cuestionario de autoconocimiento basado en el modelo de los cinco grandes rasgos.',
-  'Una descripción de tendencias en tu forma habitual de pensar, sentir y actuar.',
-  'Un punto de partida para conversar con tu orientador sobre tus intereses.',
+  'Un cuestionario de **autoconocimiento** basado en el modelo de los **cinco grandes rasgos**.',
+  'Una descripción de **tendencias** en tu forma habitual de **pensar, sentir y actuar**.',
+  'Un **punto de partida** para conversar con tu orientador sobre **tus intereses**.',
 ]
 
 const scopeNot = [
-  'Un test que te diga qué carrera estudiar.',
-  'Una evaluación con nota, puntaje ideal o respuestas correctas.',
-  'Un diagnóstico psicológico ni clínico.',
+  'Un test que **te diga qué carrera estudiar**.',
+  'Una evaluación con **nota, puntaje ideal** o respuestas correctas.',
+  'Un **diagnóstico psicológico** ni clínico.',
 ]
 
 // ── Form ──────────────────────────────────────────────────────────────────────
@@ -684,6 +715,39 @@ function handleRegister() {
   color: var(--c-primary);
   background: linear-gradient(transparent 64%, rgba(132, 204, 22, 0.38) 64%, rgba(132, 204, 22, 0.38) 92%, transparent 92%);
   padding: 0 0.04em;
+}
+
+/* Destacado de palabras clave en descripciones */
+.kw {
+  font-weight: 700;
+  color: var(--c-primary-strong);
+  background: linear-gradient(180deg, transparent 54%, rgba(132, 204, 22, 0.32) 54%, rgba(132, 204, 22, 0.32) 92%, transparent 92%);
+  padding: 0 0.14em;
+  border-radius: 3px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.ocean-card .kw {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  padding: 0.05em 0.3em;
+  border-radius: 5px;
+}
+
+.scope__col--not .kw {
+  color: var(--c-text);
+  background: rgba(148, 163, 184, 0.24);
+  padding: 0.04em 0.24em;
+  border-radius: 4px;
+}
+
+.register .kw {
+  color: #FFFFFF;
+  background: rgba(190, 242, 100, 0.2);
+  border-bottom: 2px solid #BEF264;
+  padding: 0 0.18em;
+  border-radius: 3px;
 }
 
 .hero__sub {
