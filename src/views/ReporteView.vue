@@ -197,10 +197,6 @@
                 <div class="career-item__body">
                   <h6 class="career-item__name">{{ carrera.replace(/^[^:]+:\s*/, '') }}</h6>
                   <p v-if="area.details?.[i]?.descripcion" class="career-item__desc">{{ area.details[i].descripcion }}</p>
-                  <a v-if="area.details?.[i]?.link" class="career-item__link" :href="area.details[i].link"
-                     target="_blank" rel="noopener noreferrer">
-                    Dónde se estudia <span class="visually-hidden">{{ carrera.replace(/^[^:]+:\s*/, '') }} (abre en otra pestaña)</span><span aria-hidden="true">↗</span>
-                  </a>
                 </div>
               </li>
             </ul>
@@ -544,8 +540,6 @@ function logout() {
 .career-item:not(.career-item--rich) .career-item__body { padding: 0; }
 .career-item__name { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 0.95rem; line-height: 1.3; color: var(--c-text); margin: 0; }
 .career-item__desc { font-size: 0.84rem; line-height: 1.5; color: var(--c-muted); }
-.career-item__link { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 0.82rem; font-weight: 600; color: var(--c-primary); text-decoration: none; }
-.career-item__link:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 .area-credits { padding: 0 28px 20px; font-size: 0.7rem; line-height: 1.6; color: var(--c-muted); }
 .area-credits a { color: inherit; }
